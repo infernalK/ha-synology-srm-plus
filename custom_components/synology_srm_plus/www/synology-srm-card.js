@@ -4,6 +4,7 @@
  *   type: custom:synology-srm-router-card     (router health: CPU, memory, traffic, Wi-Fi, links, storage)
  *   type: custom:synology-srm-clients-card    (every client with signal, link rate, traffic and details)
  *   type: custom:synology-srm-threat-card     (threat prevention: events, new devices, admin sessions, exposure)
+ *   type: custom:synology-srm-access-card    (access control: blocked IPs, Wi-Fi block list, MAC filters, blocked devices)
  *   type: custom:synology-srm-safeaccess-card (Safe Access / parental control per profile)
  *
  * Both cards find the integration's entities by themselves. Optional `device_id`
@@ -21,7 +22,7 @@ const I18N = {
     search: 'Search a client…', all: 'All', sort: 'Sort', name: 'Name', download: 'Download',
     upload: 'Upload', nothing: 'No client', no_data: 'No Synology SRM Plus data found.', offline: 'Offline', ip: 'IP address',
     offline_clients: 'Offline clients', last_seen: 'Last seen', ago: 'ago', router_throughput: 'Router throughput',
-    devices: 'devices', ports: 'Ports', usb: 'USB storage', no_link: 'no link', security: 'Security', threat_prevention: 'Threat prevention', profiles: 'profiles', online: 'online', mac_filter_list: 'Wi-Fi block list', mac_filter_profiles: 'Custom MAC filters', blocked_devices: 'Blocked devices', mac_filter_networks: 'Wi-Fi with MAC filter', threats: 'Threat events',
+    devices: 'devices', ports: 'Ports', usb: 'USB storage', no_link: 'no link', security: 'Security', threat_prevention: 'Threat prevention', profiles: 'profiles', online: 'online', mac_filter_list: 'Wi-Fi block list', mac_filter_profiles: 'Custom MAC filters', blocked_devices: 'Blocked devices', mac_filter_networks: 'Wi-Fi with MAC filter', access_control: 'Access control', auto_block: 'Auto-block', attempts: 'attempts', per: 'in', min: 'min', no_expiry: 'no expiry', storm: 'Broadcast-storm prevention', max_pps: 'packets/s max', on: 'on', off: 'off', ip_blocked: 'Blocked IP addresses', block_list_hint: 'applies to every SSID', threats: 'Threat events',
     last24: '24 h', last7: '7 days', new_devices: 'New devices', admin_sessions: 'Admin sessions', blocked_ips: 'Blocked IPs',
     forwards: 'Port forwards', protected: 'Protected', unprotected: 'Not protected', exposed: 'Admin reachable from the Internet',
     external_session: 'Admin session from the Internet', safe: 'Safe Access', internet_time: 'Internet time',
@@ -45,7 +46,7 @@ const I18N = {
     search: 'Rechercher un client…', all: 'Tous', sort: 'Tri', name: 'Nom', download: 'Téléchargement',
     upload: 'Envoi', nothing: 'Aucun client', no_data: 'Aucune donnée Synology SRM Plus trouvée.', offline: 'Hors ligne', ip: 'Adresse IP',
     offline_clients: 'Clients hors ligne', last_seen: 'Vu il y a', ago: '', router_throughput: 'Débit du routeur',
-    devices: 'appareils', ports: 'Ports', usb: 'Stockage USB', no_link: 'pas de lien', security: 'Sécurité', threat_prevention: 'Protection contre les menaces', profiles: 'profils', online: 'en ligne', mac_filter_list: 'Liste de blocage Wi-Fi', mac_filter_profiles: 'Filtres MAC perso', blocked_devices: 'Appareils bloqués', mac_filter_networks: 'Wi-Fi avec filtrage MAC', threats: 'Menaces détectées',
+    devices: 'appareils', ports: 'Ports', usb: 'Stockage USB', no_link: 'pas de lien', security: 'Sécurité', threat_prevention: 'Protection contre les menaces', profiles: 'profils', online: 'en ligne', mac_filter_list: 'Liste de blocage Wi-Fi', mac_filter_profiles: 'Filtres MAC perso', blocked_devices: 'Appareils bloqués', mac_filter_networks: 'Wi-Fi avec filtrage MAC', access_control: "Contrôle d'accès", auto_block: 'Blocage auto', attempts: 'tentatives', per: 'en', min: 'min', no_expiry: 'sans expiration', storm: 'Prévention des tempêtes de diffusion', max_pps: 'paquets/s max', on: 'activée', off: 'désactivée', ip_blocked: 'Adresses IP bloquées', block_list_hint: 'valable pour tous les SSID', threats: 'Menaces détectées',
     last24: '24 h', last7: '7 jours', new_devices: 'Nouveaux appareils', admin_sessions: "Sessions d'administration", blocked_ips: 'IP bloquées',
     forwards: 'Redirections de ports', protected: 'Protégé', unprotected: 'Non protégé', exposed: "Administration joignable depuis Internet",
     external_session: "Session d'administration depuis Internet", safe: 'Safe Access', internet_time: 'Temps sur internet',
@@ -632,11 +633,6 @@ class SynologySrmThreatCard extends SrmEntityCard {
 
     const tile = (label, st, sub = '') =>
       st ? `<div class="tile" data-entity="${esc(st.entity_id)}"><div class="k">${esc(label)}</div><div class="v">${esc(st.state)}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>` : '';
-    const names = (st) => (st ? (st.attributes.devices || []).map((d) => esc(d.name || d.mac || '?')).join(', ') : '');
-    const filterOn = (found.wifi_mac_filter || []).filter((st) => st.state === 'on');
-    const macNetworks = (found.wifi_mac_filter || []).length
-      ? `<div class="tile" data-entity="${esc(found.wifi_mac_filter[0].entity_id)}"><div class="k">${esc(t.mac_filter_networks)}</div><div class="v">${filterOn.length}</div><div class="s">${filterOn.map((st) => esc(st.attributes.network)).join(', ')}</div></div>`
-      : '';
     const t24 = first('threat_events_24h');
     const t7 = first('threat_events_7d');
     const lv = t7 ? t7.attributes : {};
@@ -648,12 +644,7 @@ class SynologySrmThreatCard extends SrmEntityCard {
       tile(`${t.threats} (${t.last7})`, t7, esc(levels)) +
       tile(t.new_devices, nd, newNames) +
       tile(t.admin_sessions, first('admin_sessions')) +
-      tile(t.blocked_ips, first('blocked_ips')) +
-      tile(t.forwards, first('port_forward_rules')) +
-      tile(t.blocked_devices, first('blocked_devices'), names(first('blocked_devices'))) +
-      tile(t.mac_filter_list, first('mac_filter_devices'), names(first('mac_filter_devices'))) +
-      tile(t.mac_filter_profiles, first('mac_filter_profiles')) +
-      macNetworks;
+      tile(t.forwards, first('port_forward_rules'));
 
     const sessionsSt = first('admin_sessions');
     const sessions = sessionsSt ? (sessionsSt.attributes.sessions || []).slice(0, 8) : [];
@@ -669,6 +660,60 @@ class SynologySrmThreatCard extends SrmEntityCard {
         <div class="head"><ha-icon icon="mdi:shield-check"></ha-icon><div><div class="title">${esc(this._config.title || t.threat_prevention)}</div></div><div class="badges">${badges}</div></div>
         <div class="grid">${tiles}</div>
         ${sessionRows ? `<h3>${esc(t.admin_sessions)}</h3>${sessionRows}` : ''}
+      </ha-card>`;
+  }
+}
+
+
+/* ------------------------------------------------------------------ access control card */
+
+class SynologySrmAccessCard extends SrmEntityCard {
+  _render(found) {
+    const hass = this._hass;
+    const t = strings(hass);
+    const first = (key) => (found[key] || [])[0];
+    const devs = (st) => (st && Array.isArray(st.attributes.devices) ? st.attributes.devices : []);
+    const names = (st) => devs(st).map((d) => esc(d.name || d.mac || '?')).join(', ');
+    const tile = (label, st, sub = '') =>
+      st ? `<div class="tile" data-entity="${esc(st.entity_id)}"><div class="k">${esc(label)}</div><div class="v">${esc(st.state)}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>` : '';
+
+    const ips = first('blocked_ips');
+    const a = ips ? ips.attributes : {};
+    const abLine = ips && a.auto_block_enabled !== undefined
+      ? `${esc(t.auto_block)} ${a.auto_block_enabled ? esc(t.on) : esc(t.off)}${a.failed_attempts != null ? ` · ${esc(a.failed_attempts)} ${esc(t.attempts)} ${esc(t.per)} ${esc(a.within_minutes)} ${esc(t.min)}` : ''}${a.expire_days === 0 ? ` · ${esc(t.no_expiry)}` : a.expire_days ? ` · ${esc(a.expire_days)} d` : ''}`
+      : '';
+    const blockList = first('mac_filter_devices');
+    const storm = blockList ? blockList.attributes : {};
+    const stormLine = storm.broadcast_storm_prevention !== undefined && storm.broadcast_storm_prevention !== null
+      ? `${esc(t.storm)}: ${storm.broadcast_storm_prevention ? esc(t.on) : esc(t.off)}${storm.max_broadcast_packets_per_second ? ` (${esc(storm.max_broadcast_packets_per_second)} ${esc(t.max_pps)})` : ''}`
+      : '';
+    const filters = found.wifi_mac_filter || [];
+    const filterOn = filters.filter((st) => st.state === 'on');
+    const networksTile = filters.length
+      ? `<div class="tile" data-entity="${esc(filters[0].entity_id)}"><div class="k">${esc(t.mac_filter_networks)}</div><div class="v">${filterOn.length}</div><div class="s">${filterOn.map((st) => esc(st.attributes.network)).join(', ') || filters.map((st) => esc(st.attributes.network)).join(', ')}</div></div>`
+      : '';
+    const tiles =
+      tile(t.ip_blocked, ips, esc(abLine)) +
+      tile(t.mac_filter_list, blockList, names(blockList) || esc(t.block_list_hint)) +
+      tile(t.mac_filter_profiles, first('mac_filter_profiles')) +
+      networksTile +
+      tile(t.blocked_devices, first('blocked_devices'), names(first('blocked_devices')));
+
+    const row = (title, meta) =>
+      `<div class="row" style="grid-template-columns:1fr auto;cursor:default"><div style="min-width:0"><div class="nm">${title}</div><div class="meta">${meta}</div></div></div>`;
+    const rows =
+      devs(blockList).map((d) => row(esc(d.name || d.mac), `${esc(d.mac || '')} · ${esc(t.mac_filter_list)}`)).join('') +
+      devs(first('blocked_devices')).map((d) => row(esc(d.name || d.mac), `${esc(d.ip || d.mac || '')} · ${esc(t.blocked_devices)}`)).join('');
+    const addresses = Array.isArray(a.addresses) ? a.addresses : [];
+    const addressRows = addresses
+      .map((x) => row(esc(typeof x === 'string' ? x : x.ip || x.address || JSON.stringify(x)), esc(t.ip_blocked)))
+      .join('');
+
+    this.shadowRoot.innerHTML = `<style>${STYLE}</style>
+      <ha-card>
+        <div class="head"><ha-icon icon="mdi:shield-lock"></ha-icon><div><div class="title">${esc(this._config.title || t.access_control)}</div><div class="sub">${stormLine}</div></div></div>
+        <div class="grid">${tiles}</div>
+        ${rows || addressRows ? `<div style="margin-top:8px">${addressRows}${rows}</div>` : ''}
       </ha-card>`;
   }
 }
@@ -731,6 +776,7 @@ class SynologySrmSafeAccessCard extends SrmEntityCard {
   }
 }
 
+if (!customElements.get('synology-srm-access-card')) customElements.define('synology-srm-access-card', SynologySrmAccessCard);
 if (!customElements.get('synology-srm-threat-card')) customElements.define('synology-srm-threat-card', SynologySrmThreatCard);
 if (!customElements.get('synology-srm-safeaccess-card')) customElements.define('synology-srm-safeaccess-card', SynologySrmSafeAccessCard);
 if (!customElements.get('synology-srm-router-card')) customElements.define('synology-srm-router-card', SynologySrmRouterCard);
@@ -738,6 +784,11 @@ if (!customElements.get('synology-srm-clients-card')) customElements.define('syn
 
 window.customCards = window.customCards || [];
 window.customCards.push(
+  {
+    type: 'synology-srm-access-card',
+    name: 'Synology SRM – Access control',
+    description: 'Blocked IPs (auto-block), Wi-Fi block list, custom MAC filters and blocked devices.',
+  },
   {
     type: 'synology-srm-threat-card',
     name: 'Synology SRM – Threat prevention',

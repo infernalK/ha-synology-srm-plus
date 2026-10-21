@@ -41,15 +41,15 @@ If you prefer one entity per device, use the **presence tracking option** (*Conf
 
 ## Dashboard cards
 
-Four cards are included and loaded automatically (no resource to add):
+Five cards are included and loaded automatically (no resource to add):
 
 | Router card | | Clients card |
 |---|---|---|
 | ![Router card](docs/images/router-card.png) | ![Router card, details](docs/images/router-card-details.png) | ![Clients card](docs/images/clients-card.png) |
 
-| Threat prevention card | Safe Access card |
-|---|---|
-| ![Threat prevention card](docs/images/threat-card.png) | ![Safe Access card](docs/images/safeaccess-card.png) |
+| Threat prevention card | Access control card | Safe Access card |
+|---|---|---|
+| ![Threat prevention card](docs/images/threat-card.png) | ![Access control card](docs/images/access-card.png) | ![Safe Access card](docs/images/safeaccess-card.png) |
 
 *Rendered with neutral sample data. In Home Assistant the client icons are Material Design icons (the emoji here are stand-ins used by the preview harness) and the colors follow your theme.*
 
@@ -67,6 +67,10 @@ max_height: 500          # optional, px
 
 ```yaml
 type: custom:synology-srm-threat-card     # threat prevention: events, new devices, admin sessions, exposure
+```
+
+```yaml
+type: custom:synology-srm-access-card     # access control: blocked IPs (auto-block), Wi-Fi block list, MAC filters, blocked devices
 ```
 
 ```yaml

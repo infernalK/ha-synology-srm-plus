@@ -20,4 +20,5 @@ views:
       - type: grid
         cards:
           - type: custom:synology-srm-threat-card
+          - type: custom:synology-srm-access-card
           - type: custom:synology-srm-safeaccess-card
