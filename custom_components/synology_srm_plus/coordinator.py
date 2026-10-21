@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 import json
 import logging
+import re
 from typing import Any
 
 import synology_srm
@@ -32,9 +33,10 @@ ENDPOINTS: dict[str, Callable[[synology_srm.Client], Any]] = {
     "traffic_live": lambda c: c.core.get_ngfw_traffic("live"),
     "external_ip": lambda c: c.core.list_ddns_extip(),
     "system_info": lambda c: c.mesh.get_system_info(),
-    "wan_status": lambda c: c.mesh.get_network_wanstatus(),
-    "wifi_devices": lambda c: c.mesh.get_network_wifidevice(),
 }
+
+# Only used to log which APIs the router offers (to find WAN / Wi-Fi ones).
+_API_NAME_FILTER = re.compile(r"mesh|wan|wifi|wireless|internet|network|system\.info", re.I)
 
 
 def build_client(data: dict[str, Any]) -> synology_srm.Client:
@@ -66,9 +68,30 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=SCAN_INTERVAL,
         )
         self.client = build_client(entry.data)
+        self._apis_logged = False
+
+    def _log_available_apis(self) -> None:
+        """Log (once) the API names offered by the router."""
+        self._apis_logged = True
+        try:
+            apis = self.client.base.query_info()
+        except Exception as err:  # noqa: BLE001
+            _LOGGER.warning("SRM query_info failed: %r", err)
+            return
+        if not isinstance(apis, dict):
+            _LOGGER.info("SRM query_info raw: %s", json.dumps(apis, default=str)[:3000])
+            return
+        names = sorted(apis)
+        _LOGGER.info("SRM exposes %d APIs", len(names))
+        _LOGGER.info(
+            "SRM APIs of interest: %s",
+            ", ".join(n for n in names if _API_NAME_FILTER.search(n)),
+        )
 
     def _fetch(self) -> dict[str, Any]:
         """Call every endpoint, isolating failures (blocking)."""
+        if not self._apis_logged:
+            self._log_available_apis()
         results: dict[str, Any] = {}
         failures = 0
         for key, call in ENDPOINTS.items():
@@ -82,11 +105,6 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 failures += 1
                 results[key] = {"error": f"{type(err).__name__}: {err}"}
                 _LOGGER.warning("SRM call %s crashed: %r", key, err)
-            else:
-                # Discovery phase: log raw payloads so we can see their shape.
-                _LOGGER.info(
-                    "SRM %s raw: %s", key, json.dumps(results[key], default=str)[:6000]
-                )
         if failures == len(ENDPOINTS):
             raise UpdateFailed("All SRM calls failed")
         return results
