@@ -189,6 +189,14 @@ STATIC_SENSORS: tuple[SrmSensorDescription, ...] = (
 )
 
 
+# Data key a static sensor needs (default: system_utilization).
+STATIC_REQUIRES = {
+    "external_ipv4": "external_ip",
+    "external_ipv6": "external_ip",
+    "traffic_live": "traffic_live",
+}
+
+
 def _node_descriptions(node_id: Any) -> list[SrmSensorDescription]:
     """Sensors for one router node."""
     return [
@@ -280,9 +288,156 @@ def _storage_descriptions(
     return out
 
 
+def _wifi_clients(d: dict[str, Any], band: str | None) -> list[dict[str, Any]]:
+    clients = _dig(d.get("wifi_devices"), "device_list")
+    if not isinstance(clients, list):
+        return []
+    return [
+        c
+        for c in clients
+        if isinstance(c, dict) and (band is None or c.get("radio_type") == band)
+    ]
+
+
+def _wifi_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
+    """Channel, client count and signal per Wi-Fi band."""
+    out: list[SrmSensorDescription] = []
+    bands: set[str] = set()
+    for item in _dig(data.get("wifi_radio"), "status_list") or []:
+        if isinstance(item, dict) and item.get("radio_type"):
+            bands.add(item["radio_type"])
+            band = item["radio_type"]
+            out.append(
+                SrmSensorDescription(
+                    key=f"wifi_channel_{band}",
+                    translation_key="wifi_channel",
+                    placeholders={"band": band},
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    value_fn=lambda d, b=band: _num(
+                        (
+                            _find(_dig(d.get("wifi_radio"), "status_list"), radio_type=b)
+                            or {}
+                        ).get("channel")
+                    ),
+                )
+            )
+    for c in _wifi_clients(data, None):
+        if c.get("radio_type"):
+            bands.add(c["radio_type"])
+
+    def _avg_signal(d: dict[str, Any], b: str | None) -> float | None:
+        signals = [
+            c["signal"]
+            for c in _wifi_clients(d, b)
+            if isinstance(c.get("signal"), (int, float))
+        ]
+        return round(sum(signals) / len(signals), 1) if signals else None
+
+    if data.get("wifi_devices") is not None:
+        out.append(
+            SrmSensorDescription(
+                key="wifi_clients_total",
+                translation_key="wifi_clients",
+                placeholders={"band": "Wi-Fi"},
+                state_class=SensorStateClass.MEASUREMENT,
+                value_fn=lambda d: len(_wifi_clients(d, None)),
+            )
+        )
+        for band in sorted(bands):
+            out.append(
+                SrmSensorDescription(
+                    key=f"wifi_clients_{band}",
+                    translation_key="wifi_clients",
+                    placeholders={"band": band},
+                    state_class=SensorStateClass.MEASUREMENT,
+                    value_fn=lambda d, b=band: len(_wifi_clients(d, b)),
+                )
+            )
+            out.append(
+                SrmSensorDescription(
+                    key=f"wifi_signal_{band}",
+                    translation_key="wifi_signal",
+                    placeholders={"band": band},
+                    native_unit_of_measurement=PERCENTAGE,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    value_fn=lambda d, b=band: _avg_signal(d, b),
+                )
+            )
+    return out
+
+
+def _network_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
+    """Connection status, network mode and Ethernet links."""
+    out: list[SrmSensorDescription] = []
+    if data.get("connection_status") is not None:
+        for family in ("ipv4", "ipv6"):
+            out.append(
+                SrmSensorDescription(
+                    key=f"connection_{family}",
+                    translation_key="connection_status",
+                    placeholders={"family": family.upper()},
+                    value_fn=lambda d, f=family: _dig(
+                        d.get("connection_status"), f, "conn_status"
+                    ),
+                )
+            )
+    if data.get("topology") is not None:
+        out.append(
+            SrmSensorDescription(
+                key="network_mode",
+                translation_key="network_mode",
+                value_fn=lambda d: _dig(d.get("topology"), "net_topology"),
+            )
+        )
+    for link in data.get("ethernet") or []:
+        if not isinstance(link, dict) or not link.get("ifname"):
+            continue
+        if not (link.get("ip") or link.get("speed")):
+            continue  # skip idle virtual interfaces (bwlan0 / bwlan1)
+        name = link["ifname"]
+        ph = {"interface": name}
+        out += [
+            SrmSensorDescription(
+                key=f"link_{name}_status",
+                translation_key="link_status",
+                placeholders=ph,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                value_fn=lambda d, n=name: (
+                    _find(d.get("ethernet"), ifname=n) or {}
+                ).get("status"),
+            ),
+            SrmSensorDescription(
+                key=f"link_{name}_speed",
+                translation_key="link_speed",
+                placeholders=ph,
+                device_class=SensorDeviceClass.DATA_RATE,
+                native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
+                state_class=SensorStateClass.MEASUREMENT,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                value_fn=lambda d, n=name: _num(
+                    (_find(d.get("ethernet"), ifname=n) or {}).get("speed")
+                ),
+            ),
+            SrmSensorDescription(
+                key=f"link_{name}_ip",
+                translation_key="link_ip",
+                placeholders=ph,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                value_fn=lambda d, n=name: (
+                    (_find(d.get("ethernet"), ifname=n) or {}).get("ip") or None
+                ),
+            ),
+        ]
+    return out
+
+
 def _dynamic_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
     """Build the per-node / per-interface / per-disk sensors from the first data."""
-    out: list[SrmSensorDescription] = []
+    out: list[SrmSensorDescription] = [
+        *_wifi_descriptions(data),
+        *_network_descriptions(data),
+    ]
 
     for node in _dig(data.get("system_info"), "nodes") or []:
         if isinstance(node, dict) and "node_id" in node:
@@ -307,7 +462,13 @@ async def async_setup_entry(
 ) -> None:
     """Set up sensors."""
     coordinator = entry.runtime_data
-    descriptions = [*STATIC_SENSORS, *_dynamic_descriptions(coordinator.data)]
+    data = coordinator.data
+    # Skip sensors whose API this router does not offer.
+    descriptions = [
+        desc
+        for desc in STATIC_SENSORS
+        if data.get(STATIC_REQUIRES.get(desc.key, "system_utilization")) is not None
+    ] + _dynamic_descriptions(data)
     async_add_entities(SrmSensor(coordinator, desc) for desc in descriptions)
 
 

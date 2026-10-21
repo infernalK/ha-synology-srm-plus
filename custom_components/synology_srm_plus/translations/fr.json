@@ -23,31 +23,105 @@
   },
   "entity": {
     "sensor": {
-      "cpu_usage": { "name": "Utilisation CPU" },
-      "cpu_user": { "name": "CPU utilisateur" },
-      "cpu_system": { "name": "CPU système" },
-      "load_1min": { "name": "Charge moyenne (1 min)" },
-      "load_5min": { "name": "Charge moyenne (5 min)" },
-      "load_15min": { "name": "Charge moyenne (15 min)" },
-      "memory_usage": { "name": "Utilisation mémoire" },
-      "swap_usage": { "name": "Utilisation swap" },
-      "memory_total_real": { "name": "Mémoire totale" },
-      "memory_avail_real": { "name": "Mémoire disponible" },
-      "memory_cached": { "name": "Mémoire en cache" },
-      "memory_buffer": { "name": "Mémoire tampons" },
-      "memory_total_swap": { "name": "Swap total" },
-      "memory_avail_swap": { "name": "Swap disponible" },
-      "external_ipv4": { "name": "IPv4 externe" },
-      "external_ipv6": { "name": "IPv6 externe" },
-      "traffic_live": { "name": "Entrées de trafic en direct" },
-      "uptime": { "name": "Durée de fonctionnement (nœud {node})" },
-      "firmware": { "name": "Firmware (nœud {node})" },
-      "model": { "name": "Modèle (nœud {node})" },
-      "net_rx": { "name": "{interface} téléchargement" },
-      "net_tx": { "name": "{interface} envoi" },
-      "storage_utilization": { "name": "{kind} {device} utilisation" },
-      "storage_read": { "name": "{kind} {device} lecture" },
-      "storage_write": { "name": "{kind} {device} écriture" }
+      "cpu_usage": {
+        "name": "Utilisation CPU"
+      },
+      "cpu_user": {
+        "name": "CPU utilisateur"
+      },
+      "cpu_system": {
+        "name": "CPU système"
+      },
+      "load_1min": {
+        "name": "Charge moyenne (1 min)"
+      },
+      "load_5min": {
+        "name": "Charge moyenne (5 min)"
+      },
+      "load_15min": {
+        "name": "Charge moyenne (15 min)"
+      },
+      "memory_usage": {
+        "name": "Utilisation mémoire"
+      },
+      "swap_usage": {
+        "name": "Utilisation swap"
+      },
+      "memory_total_real": {
+        "name": "Mémoire totale"
+      },
+      "memory_avail_real": {
+        "name": "Mémoire disponible"
+      },
+      "memory_cached": {
+        "name": "Mémoire en cache"
+      },
+      "memory_buffer": {
+        "name": "Mémoire tampons"
+      },
+      "memory_total_swap": {
+        "name": "Swap total"
+      },
+      "memory_avail_swap": {
+        "name": "Swap disponible"
+      },
+      "external_ipv4": {
+        "name": "IPv4 externe"
+      },
+      "external_ipv6": {
+        "name": "IPv6 externe"
+      },
+      "traffic_live": {
+        "name": "Entrées de trafic en direct"
+      },
+      "uptime": {
+        "name": "Durée de fonctionnement (nœud {node})"
+      },
+      "firmware": {
+        "name": "Firmware (nœud {node})"
+      },
+      "model": {
+        "name": "Modèle (nœud {node})"
+      },
+      "net_rx": {
+        "name": "{interface} téléchargement"
+      },
+      "net_tx": {
+        "name": "{interface} envoi"
+      },
+      "storage_utilization": {
+        "name": "{kind} {device} utilisation"
+      },
+      "storage_read": {
+        "name": "{kind} {device} lecture"
+      },
+      "storage_write": {
+        "name": "{kind} {device} écriture"
+      },
+      "connection_status": {
+        "name": "Connexion {family}"
+      },
+      "network_mode": {
+        "name": "Mode réseau"
+      },
+      "wifi_channel": {
+        "name": "Canal Wi-Fi {band}"
+      },
+      "wifi_clients": {
+        "name": "Clients {band}"
+      },
+      "wifi_signal": {
+        "name": "Signal moyen Wi-Fi {band}"
+      },
+      "link_status": {
+        "name": "Lien {interface}"
+      },
+      "link_speed": {
+        "name": "Vitesse du lien {interface}"
+      },
+      "link_ip": {
+        "name": "Adresse IP {interface}"
+      }
     }
   }
 }

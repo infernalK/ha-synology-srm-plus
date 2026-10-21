@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-import json
 import logging
-import re
 from typing import Any
 
 import synology_srm
@@ -27,29 +25,41 @@ from .const import DOMAIN, SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
-# key -> call on the synology_srm client
-ENDPOINTS: dict[str, Callable[[synology_srm.Client], Any]] = {
-    "system_utilization": lambda c: c.core.get_system_utilization(),
-    "traffic_live": lambda c: c.core.get_ngfw_traffic("live"),
-    "external_ip": lambda c: c.core.list_ddns_extip(),
-    "system_info": lambda c: c.mesh.get_system_info(),
+
+def _raw(api: str, method: str = "get") -> Callable[[synology_srm.Client], Any]:
+    """Call an SRM API the library has no wrapper for."""
+    return lambda c: c.http.call(endpoint="entry.cgi", api=api, method=method, version=1)
+
+
+# key -> (API name, call on the synology_srm client)
+# The API name is checked against the router's API list: an API the router does
+# not offer is skipped silently (SRM models and firmwares differ).
+ENDPOINTS: dict[str, tuple[str, Callable[[synology_srm.Client], Any]]] = {
+    "system_utilization": (
+        "SYNO.Core.System.Utilization",
+        lambda c: c.core.get_system_utilization(),
+    ),
+    "traffic_live": (
+        "SYNO.Core.NGFW.Traffic",
+        lambda c: c.core.get_ngfw_traffic("live"),
+    ),
+    "external_ip": ("SYNO.Core.DDNS.ExtIP", lambda c: c.core.list_ddns_extip()),
+    "system_info": ("SYNO.Mesh.System.Info", lambda c: c.mesh.get_system_info()),
+    "connection_status": (
+        "SYNO.Core.Network.Router.ConnectionStatus",
+        _raw("SYNO.Core.Network.Router.ConnectionStatus"),
+    ),
+    "topology": (
+        "SYNO.Core.Network.Router.Topology",
+        _raw("SYNO.Core.Network.Router.Topology"),
+    ),
+    "ethernet": (
+        "SYNO.Core.Network.Ethernet",
+        _raw("SYNO.Core.Network.Ethernet", "list"),
+    ),
+    "wifi_radio": ("SYNO.Wifi.Radio.Status", _raw("SYNO.Wifi.Radio.Status")),
+    "wifi_devices": ("SYNO.Wifi.Device", _raw("SYNO.Wifi.Device")),
 }
-
-# Candidate APIs found in the router's API list, probed once to see their payloads.
-EXTRA_PROBES: tuple[tuple[str, str], ...] = (
-    ("SYNO.Core.Network.Router.ConnectionStatus", "get"),
-    ("SYNO.Core.Network.Router.Gateway.List", "get"),
-    ("SYNO.Core.Network.Interface", "get"),
-    ("SYNO.Core.Network.Ethernet", "list"),
-    ("SYNO.Wifi.Radio.Status", "get"),
-    ("SYNO.Wifi.Device", "get"),
-    ("SYNO.Mesh.System.Utilization", "get"),
-    ("SYNO.Mesh.Network.Info", "get"),
-    ("SYNO.Core.Network.Router.Topology", "get"),
-)
-
-# Only used to log which APIs the router offers (to find WAN / Wi-Fi ones).
-_API_NAME_FILTER = re.compile(r"mesh|wan|wifi|wireless|internet|network|system\.info", re.I)
 
 
 def build_client(data: dict[str, Any]) -> synology_srm.Client:
@@ -81,62 +91,46 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             update_interval=SCAN_INTERVAL,
         )
         self.client = build_client(entry.data)
-        self._apis_logged = False
+        # None until the API list has been read; then the set of API names.
+        self._available_apis: set[str] | None = None
+        self._apis_loaded = False
 
-    def _log_available_apis(self) -> None:
-        """Log (once) the API names offered by the router."""
-        self._apis_logged = True
+    def _load_available_apis(self) -> None:
+        """Read (once) the API names offered by the router."""
+        self._apis_loaded = True
         try:
             apis = self.client.base.query_info()
         except Exception as err:  # noqa: BLE001
-            _LOGGER.warning("SRM query_info failed: %r", err)
+            _LOGGER.warning("SRM query_info failed, assuming all APIs exist: %r", err)
             return
-        if not isinstance(apis, dict):
-            _LOGGER.info("SRM query_info raw: %s", json.dumps(apis, default=str)[:3000])
-            return
-        names = sorted(apis)
-        _LOGGER.info("SRM exposes %d APIs", len(names))
-        _LOGGER.info(
-            "SRM APIs of interest: %s",
-            ", ".join(n for n in names if _API_NAME_FILTER.search(n)),
-        )
-
-    def _log_extra_apis(self) -> None:
-        """Probe candidate WAN / Wi-Fi APIs once and log their raw payloads."""
-        for api, method in EXTRA_PROBES:
-            try:
-                result = self.client.http.call(
-                    endpoint="entry.cgi", api=api, method=method, version=1
-                )
-            except Exception as err:  # noqa: BLE001
-                _LOGGER.info("SRM probe %s.%s failed: %r", api, method, err)
-            else:
-                _LOGGER.info(
-                    "SRM probe %s.%s raw: %s",
-                    api,
-                    method,
-                    json.dumps(result, default=str)[:4000],
-                )
+        if isinstance(apis, dict):
+            self._available_apis = set(apis)
+            _LOGGER.debug("SRM exposes %d APIs", len(apis))
 
     def _fetch(self) -> dict[str, Any]:
-        """Call every endpoint, isolating failures (blocking)."""
-        if not self._apis_logged:
-            self._log_available_apis()
-            self._log_extra_apis()
+        """Call every endpoint the router offers, isolating failures (blocking)."""
+        if not self._apis_loaded:
+            self._load_available_apis()
         results: dict[str, Any] = {}
         failures = 0
-        for key, call in ENDPOINTS.items():
+        called = 0
+        for key, (api, call) in ENDPOINTS.items():
+            if self._available_apis is not None and api not in self._available_apis:
+                _LOGGER.debug("SRM API %s not offered by this router, skipping", api)
+                results[key] = None
+                continue
+            called += 1
             try:
                 results[key] = call(self.client)
             except SynologyException as err:
                 failures += 1
-                results[key] = {"error": f"{type(err).__name__}: {err}"}
-                _LOGGER.warning("SRM call %s failed: %s", key, err)
+                results[key] = None
+                _LOGGER.warning("SRM call %s (%s) failed: %s", key, api, err)
             except Exception as err:  # noqa: BLE001 - unknown payload/lib errors
                 failures += 1
-                results[key] = {"error": f"{type(err).__name__}: {err}"}
-                _LOGGER.warning("SRM call %s crashed: %r", key, err)
-        if failures == len(ENDPOINTS):
+                results[key] = None
+                _LOGGER.warning("SRM call %s (%s) crashed: %r", key, api, err)
+        if called and failures == called:
             raise UpdateFailed("All SRM calls failed")
         return results
 
