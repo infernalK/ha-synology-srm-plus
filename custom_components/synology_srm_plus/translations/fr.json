@@ -107,9 +107,6 @@
       "wifi_channel": {
         "name": "Canal Wi-Fi {band}"
       },
-      "wifi_clients": {
-        "name": "Clients {band}"
-      },
       "wifi_signal": {
         "name": "Signal moyen Wi-Fi {band}"
       },
@@ -130,6 +127,22 @@
       },
       "client_tx": {
         "name": "Envoi clients ({group})"
+      },
+      "clients_group": {
+        "name": "Clients {group}"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "data": {
+          "track_clients": "Créer un suivi de présence pour chaque client"
+        },
+        "data_description": {
+          "track_clients": "Ajoute une entité de présence par appareil connecté au routeur (comme l'intégration native). La liste des clients reste toujours disponible dans les attributs des capteurs de connexion."
+        }
       }
     }
   }

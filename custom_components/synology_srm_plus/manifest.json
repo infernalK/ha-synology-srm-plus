@@ -1,12 +1,20 @@
 {
   "domain": "synology_srm_plus",
   "name": "Synology SRM Plus",
-  "codeowners": ["@infernalK"],
+  "codeowners": [
+    "@infernalK"
+  ],
   "config_flow": true,
+  "dependencies": [
+    "http",
+    "frontend"
+  ],
   "documentation": "https://github.com/infernalK/ha-synology-srm-plus",
   "integration_type": "hub",
   "iot_class": "local_polling",
   "issue_tracker": "https://github.com/infernalK/ha-synology-srm-plus/issues",
-  "requirements": ["synology-srm==0.2.3"],
-  "version": "0.3.2"
+  "requirements": [
+    "synology-srm==0.2.3"
+  ],
+  "version": "0.4.0"
 }

@@ -8,23 +8,56 @@ It works alongside the built-in integration (different domain) and is configured
 
 ## What you get
 
-| Group | Sensors |
+| Group | Entities |
 |---|---|
 | CPU | usage, user / system share, load average (1 / 5 / 15 min) |
 | Memory | usage %, swap usage %, total / available / cached / buffers / swap (diagnostic) |
-| Network | download / upload rate for the total and each interface (`br0`, `bwlan0`, `bwlan1`, `eth2`…) |
-| Connection | IPv4 / IPv6 status, network mode (router / bridge), external IPv4 / IPv6 |
-| Ethernet links | status, speed, IP per active interface |
-| Wi-Fi | channel, client count and average signal per band, total clients |
+| Clients | online clients, **one sensor per connection** (Wi-Fi 2.4G, Wi-Fi 5G, Wired) whose attributes list every attached client, and client download / upload rates (total and per connection) |
+| Connection | IPv4 / IPv6 status, network mode (router / bridge), external IPv4 / IPv6 (+ DDNS host names as attributes) |
+| Ethernet links | status, speed, IP per active interface (mask, gateway, DNS, MTU… as attributes) |
+| Wi-Fi | channel (+ BSSID) and average signal per band |
 | Storage | utilization, read and write rate per disk and volume |
 | Router | uptime, firmware, model (serial number in the device page) |
+| Interfaces | per-interface rates (`br0`, `eth2`…), disabled by default, see *Units and caveats* |
 | Diagnostic | number of live traffic entries (needs traffic statistics enabled on the router) |
+| Optional | one device tracker per client (*Configure* on the integration → *Create a device tracker for every client*) |
+
+### Client details
+
+Each connection sensor (e.g. `sensor.<router>_clients_wi_fi_5g`) has a `clients` attribute: a list with,
+for every device, its name, MAC, IPv4 / IPv6, Wi-Fi band, SSID and profile, signal, link rate, download and
+upload rates, device type, router node, and the QoS / guest / blocked / parental-control flags.
+These attributes are kept out of the recorder (no database bloat).
+
+If you prefer one entity per device, enable the **device tracker option**: it creates a presence entity per
+client (same idea as the built-in integration, so keep only one of the two if you do not want duplicates).
 
 Polling interval: 60 seconds. Everything is read locally from the SRM web API
 (`https://<router>:8001`), using the [synology-srm](https://github.com/aerialls/synology-srm) library.
 
 SRM models and firmwares differ: the integration reads the list of APIs your router offers and
 **only creates the sensors whose API exists**. Missing ones are skipped without errors.
+
+## Dashboard cards
+
+The integration ships two cards and loads them automatically (no resource to add):
+
+```yaml
+type: custom:synology-srm-router-card     # CPU / memory gauges, traffic, Wi-Fi, network, storage
+```
+
+```yaml
+type: custom:synology-srm-clients-card    # every client: signal, link rate, traffic, details on click
+title: Clients
+sort_by: download        # download | upload | signal | name
+groups: [5G, 2.4G]       # optional filter (also: Wired)
+max_height: 500          # optional, px
+```
+
+Both cards find the integration's entities on their own; add `device_id: <id>` if you have several routers.
+Click a client to expand all its details, double-click to open its connection sensor. A ready-made
+dashboard is in [dashboards/synology-srm.yaml](dashboards/synology-srm.yaml). The cards are in French or
+English depending on your Home Assistant language.
 
 ## Install
 
@@ -42,7 +75,7 @@ Default port is `8001`; the certificate is usually self-signed, so *Verify SSL* 
 
 ## Units and caveats
 
-- **Client traffic** sensors sum the per-device `transfer_rx_rate` / `transfer_tx_rate` reported by SRM
+- **Client traffic** sensors sum the per-device `transferRXRate` / `transferTXRate` reported by SRM
   (total, per Wi-Fi band, wired). While a 4K video played on one 5 GHz client, that device reported about
   4.1 million, consistent with bytes per second (~33 Mbit/s). Use these for real throughput.
 - The per-interface rates (`br0`, `eth2`…) come from the system utilization API and **stayed near zero
@@ -51,7 +84,6 @@ Default port is `8001`; the certificate is usually self-signed, so *Verify SSL* 
 - Disk rates are assumed to be in bytes per second (not verified).
 - Load averages are reported by SRM multiplied by 100 and are divided back.
 - The Wi-Fi signal value is shown as a percentage; Synology does not document its scale.
-- Wi-Fi client sensors count the clients associated to this router (not mesh nodes).
 
 ## Help us support more models
 

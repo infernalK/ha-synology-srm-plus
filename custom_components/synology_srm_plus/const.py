@@ -3,6 +3,11 @@
 from datetime import timedelta
 
 DOMAIN = "synology_srm_plus"
+VERSION = "0.4.0"  # keep in sync with manifest.json (also busts the card cache)
+
+CONF_TRACK_CLIENTS = "track_clients"
+
+CARD_URL = f"/{DOMAIN}/synology-srm-card.js"
 
 DEFAULT_PORT = 8001
 DEFAULT_USERNAME = "admin"

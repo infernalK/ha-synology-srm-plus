@@ -1,0 +1,96 @@
+"""Optional per-client device trackers for Synology SRM Plus."""
+
+from __future__ import annotations
+
+from typing import Any
+
+from homeassistant.components.device_tracker import ScannerEntity, SourceType
+from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from . import SrmConfigEntry
+from .const import CONF_TRACK_CLIENTS, DOMAIN
+from .coordinator import SrmCoordinator
+
+
+async def async_setup_entry(
+    hass: HomeAssistant,
+    entry: SrmConfigEntry,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+) -> None:
+    """Create one tracker per client, when enabled in the options."""
+    if not entry.options.get(CONF_TRACK_CLIENTS):
+        return
+    coordinator = entry.runtime_data
+    known: set[str] = set()
+
+    @callback
+    def _add_new_clients() -> None:
+        new = []
+        for client in coordinator.data.get("client_list") or []:
+            mac = client.get("mac")
+            if mac and mac not in known:
+                known.add(mac)
+                new.append(SrmClientTracker(coordinator, mac, client["name"]))
+        if new:
+            async_add_entities(new)
+
+    _add_new_clients()
+    entry.async_on_unload(coordinator.async_add_listener(_add_new_clients))
+
+
+class SrmClientTracker(CoordinatorEntity[SrmCoordinator], ScannerEntity):
+    """A device connected to the router."""
+
+    _attr_has_entity_name = True
+    _attr_source_type = SourceType.ROUTER
+
+    def __init__(self, coordinator: SrmCoordinator, mac: str, name: str) -> None:
+        """Initialize."""
+        super().__init__(coordinator)
+        self._mac = mac
+        self._attr_name = name
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_client_{mac}"
+
+    @property
+    def entity_registry_enabled_default(self) -> bool:
+        """Enabled: the user opted in to client trackers."""
+        return True
+
+    def _client(self) -> dict[str, Any] | None:
+        for client in self.coordinator.data.get("client_list") or []:
+            if client.get("mac") == self._mac:
+                return client
+        return None
+
+    @property
+    def mac_address(self) -> str:
+        """Return the MAC address."""
+        return self._mac
+
+    @property
+    def is_connected(self) -> bool:
+        """Return whether the client is online."""
+        return self._client() is not None
+
+    @property
+    def ip_address(self) -> str | None:
+        """Return the IP address."""
+        return (self._client() or {}).get("ip")
+
+    @property
+    def hostname(self) -> str | None:
+        """Return the host name."""
+        return (self._client() or {}).get("name")
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the details SRM reports for this client."""
+        client = self._client()
+        if client is None:
+            return None
+        skip = {"mac", "ip", "name"}
+        return {k: v for k, v in client.items() if k not in skip}
+
+    _unrecorded_attributes = frozenset({"wifi_bytes_rx", "wifi_bytes_tx"})

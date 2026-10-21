@@ -26,6 +26,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import SrmConfigEntry
 from .const import DOMAIN
+from .clients import GROUP_WIRED, group_label
 from .coordinator import SrmCoordinator
 
 
@@ -62,6 +63,7 @@ class SrmSensorDescription(SensorEntityDescription):
 
     value_fn: Callable[[dict[str, Any]], Any]
     placeholders: dict[str, str] | None = None
+    attrs_fn: Callable[[dict[str, Any]], dict[str, Any] | None] | None = None
 
 
 def _util(*path: str | int) -> Callable[[dict[str, Any]], Any]:
@@ -171,6 +173,14 @@ STATIC_SENSORS: tuple[SrmSensorDescription, ...] = (
         key="external_ipv4",
         translation_key="external_ipv4",
         value_fn=lambda d: (_find(d.get("external_ip"), type="WAN") or {}).get("ip") or None,
+        attrs_fn=lambda d: {
+            "ddns_hostnames": [
+                r["hostname"]
+                for r in (_dig(d.get("ddns"), "records") or [])
+                if isinstance(r, dict) and r.get("hostname")
+            ]
+        }
+        or None,
     ),
     SrmSensorDescription(
         key="external_ipv6",
@@ -291,120 +301,109 @@ def _storage_descriptions(
     return out
 
 
-def _wifi_clients(d: dict[str, Any], band: str | None) -> list[dict[str, Any]]:
-    clients = _dig(d.get("wifi_devices"), "device_list")
+def _clients(d: dict[str, Any], group: str | None = None) -> list[dict[str, Any]]:
+    """Return the normalised client list, optionally for one group."""
+    clients = d.get("client_list")
     if not isinstance(clients, list):
         return []
-    return [
-        c
-        for c in clients
-        if isinstance(c, dict) and (band is None or c.get("radio_type") == band)
+    return [c for c in clients if group is None or c.get("group") == group]
+
+
+def _sum_rate(d: dict[str, Any], field: str, group: str | None) -> float:
+    return sum(
+        c[field]
+        for c in _clients(d, group)
+        if isinstance(c.get(field), (int, float)) and not isinstance(c.get(field), bool)
+    )
+
+
+def _avg_signal(d: dict[str, Any], group: str) -> float | None:
+    signals = [
+        c["signal"] for c in _clients(d, group) if isinstance(c.get("signal"), (int, float))
     ]
+    return round(sum(signals) / len(signals), 1) if signals else None
+
+
+def _radio(d: dict[str, Any], band: str) -> dict[str, Any]:
+    return _find(_dig(d.get("wifi_radio"), "status_list"), radio_type=band) or {}
+
+
+def _group_attrs(d: dict[str, Any], group: str) -> dict[str, Any]:
+    """Attributes of a connection group: who is attached, and how."""
+    clients = _clients(d, group)
+    attrs: dict[str, Any] = {"integration": DOMAIN, "group": group, "clients": clients}
+    if group != GROUP_WIRED:
+        radio = _radio(d, group)
+        attrs["channel"] = radio.get("channel")
+        attrs["bssid"] = radio.get("bssid")
+        attrs["ssids"] = sorted({c["ssid"] for c in clients if c.get("ssid")})
+        attrs["average_signal"] = _avg_signal(d, group)
+    attrs["download"] = _sum_rate(d, "download", group)
+    attrs["upload"] = _sum_rate(d, "upload", group)
+    return {k: v for k, v in attrs.items() if v is not None}
 
 
 def _wifi_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
-    """Channel, client count and signal per Wi-Fi band."""
+    """Channel and average signal per Wi-Fi band."""
     out: list[SrmSensorDescription] = []
-    bands: set[str] = set()
-    for item in _dig(data.get("wifi_radio"), "status_list") or []:
-        if isinstance(item, dict) and item.get("radio_type"):
-            bands.add(item["radio_type"])
-            band = item["radio_type"]
+    bands = {
+        item["radio_type"]
+        for item in _dig(data.get("wifi_radio"), "status_list") or []
+        if isinstance(item, dict) and item.get("radio_type")
+    } | {c["group"] for c in _clients(data) if c.get("group") != GROUP_WIRED}
+    for band in sorted(bands):
+        if _radio(data, band):
             out.append(
                 SrmSensorDescription(
                     key=f"wifi_channel_{band}",
                     translation_key="wifi_channel",
                     placeholders={"band": band},
                     entity_category=EntityCategory.DIAGNOSTIC,
-                    value_fn=lambda d, b=band: _num(
-                        (
-                            _find(_dig(d.get("wifi_radio"), "status_list"), radio_type=b)
-                            or {}
-                        ).get("channel")
-                    ),
+                    value_fn=lambda d, b=band: _num(_radio(d, b).get("channel")),
+                    attrs_fn=lambda d, b=band: {"bssid": _radio(d, b).get("bssid")},
                 )
             )
-    for c in _wifi_clients(data, None):
-        if c.get("radio_type"):
-            bands.add(c["radio_type"])
-
-    def _avg_signal(d: dict[str, Any], b: str | None) -> float | None:
-        signals = [
-            c["signal"]
-            for c in _wifi_clients(d, b)
-            if isinstance(c.get("signal"), (int, float))
-        ]
-        return round(sum(signals) / len(signals), 1) if signals else None
-
-    if data.get("wifi_devices") is not None:
         out.append(
             SrmSensorDescription(
-                key="wifi_clients_total",
-                translation_key="wifi_clients",
-                placeholders={"band": "Wi-Fi"},
+                key=f"wifi_signal_{band}",
+                translation_key="wifi_signal",
+                placeholders={"band": band},
+                native_unit_of_measurement=PERCENTAGE,
                 state_class=SensorStateClass.MEASUREMENT,
-                value_fn=lambda d: len(_wifi_clients(d, None)),
+                entity_category=EntityCategory.DIAGNOSTIC,
+                value_fn=lambda d, b=band: _avg_signal(d, b),
             )
         )
-        for band in sorted(bands):
-            out.append(
-                SrmSensorDescription(
-                    key=f"wifi_clients_{band}",
-                    translation_key="wifi_clients",
-                    placeholders={"band": band},
-                    state_class=SensorStateClass.MEASUREMENT,
-                    value_fn=lambda d, b=band: len(_wifi_clients(d, b)),
-                )
-            )
-            out.append(
-                SrmSensorDescription(
-                    key=f"wifi_signal_{band}",
-                    translation_key="wifi_signal",
-                    placeholders={"band": band},
-                    native_unit_of_measurement=PERCENTAGE,
-                    state_class=SensorStateClass.MEASUREMENT,
-                    entity_category=EntityCategory.DIAGNOSTIC,
-                    value_fn=lambda d, b=band: _avg_signal(d, b),
-                )
-            )
     return out
 
 
-def _client_group(client: dict[str, Any]) -> str:
-    """Return the band of a Wi-Fi client, or 'Wired'."""
-    if client.get("is_wireless"):
-        return str(client.get("band") or "Wi-Fi")
-    return "Wired"
-
-
-def _client_rate(d: dict[str, Any], field: str, group: str | None) -> float | None:
-    clients = d.get("clients")
-    if not isinstance(clients, list):
-        return None
-    return sum(
-        c.get(field) or 0
-        for c in clients
-        if isinstance(c, dict) and (group is None or _client_group(c) == group)
-    )
-
-
 def _client_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
-    """Traffic summed over the online clients (total and per band / wired)."""
-    clients = data.get("clients")
-    if not isinstance(clients, list):
+    """Client counts (with the client list as attributes) and traffic, per group."""
+    if not isinstance(data.get("client_list"), list):
         return []
-    groups = sorted({_client_group(c) for c in clients if isinstance(c, dict)})
+    groups = sorted({c["group"] for c in _clients(data)})
     out = [
         SrmSensorDescription(
             key="clients_online",
             translation_key="clients_online",
             state_class=SensorStateClass.MEASUREMENT,
-            value_fn=lambda d: len(d["clients"]) if d.get("clients") is not None else None,
+            value_fn=lambda d: len(_clients(d)),
         )
     ]
+    for group in groups:
+        out.append(
+            SrmSensorDescription(
+                key=f"clients_group_{group}",
+                translation_key="clients_group",
+                placeholders={"group": group_label(group)},
+                state_class=SensorStateClass.MEASUREMENT,
+                value_fn=lambda d, g=group: len(_clients(d, g)),
+                attrs_fn=lambda d, g=group: _group_attrs(d, g),
+            )
+        )
     for group in (None, *groups):
         label = "Total" if group is None else group
-        for field, tkey in (("transfer_rx_rate", "client_rx"), ("transfer_tx_rate", "client_tx")):
+        for field, tkey in (("download", "client_rx"), ("upload", "client_tx")):
             out.append(
                 SrmSensorDescription(
                     key=f"{tkey}_{label}",
@@ -415,7 +414,7 @@ def _client_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
                     suggested_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
                     suggested_display_precision=1,
                     state_class=SensorStateClass.MEASUREMENT,
-                    value_fn=lambda d, f=field, g=group: _client_rate(d, f, g),
+                    value_fn=lambda d, f=field, g=group: _sum_rate(d, f, g),
                 )
             )
     return out
@@ -434,6 +433,11 @@ def _network_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
                     value_fn=lambda d, f=family: _dig(
                         d.get("connection_status"), f, "conn_status"
                     ),
+                    attrs_fn=lambda d, f=family: {
+                        k: v
+                        for k, v in (_dig(d.get("connection_status"), f) or {}).items()
+                        if k != "conn_status" and v not in ("", None)
+                    },
                 )
             )
     if data.get("topology") is not None:
@@ -442,6 +446,11 @@ def _network_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
                 key="network_mode",
                 translation_key="network_mode",
                 value_fn=lambda d: _dig(d.get("topology"), "net_topology"),
+                attrs_fn=lambda d: {
+                    k: v
+                    for k, v in (d.get("topology") or {}).items()
+                    if k != "net_topology"
+                },
             )
         )
     for link in data.get("ethernet") or []:
@@ -460,6 +469,11 @@ def _network_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
                 value_fn=lambda d, n=name: (
                     _find(d.get("ethernet"), ifname=n) or {}
                 ).get("status"),
+                attrs_fn=lambda d, n=name: {
+                    k: v
+                    for k, v in (_find(d.get("ethernet"), ifname=n) or {}).items()
+                    if k not in ("status", "ifname", "speed") and v not in ("", None, [])
+                },
             ),
             SrmSensorDescription(
                 key=f"link_{name}_speed",
@@ -557,9 +571,14 @@ class SrmSensor(CoordinatorEntity[SrmCoordinator], SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        """Expose the raw live traffic list on the diagnostic sensor."""
+        """Return the description's attributes (and the raw live traffic list)."""
         if self.entity_description.key == "traffic_live":
             return {"data": self.coordinator.data.get("traffic_live")}
-        return None
+        # The placeholders (interface, group, band...) identify the sensor for the cards.
+        attrs: dict[str, Any] = dict(self.entity_description.placeholders or {})
+        if self.entity_description.attrs_fn:
+            attrs.update(self.entity_description.attrs_fn(self.coordinator.data) or {})
+        return attrs or None
 
-    _unrecorded_attributes = frozenset({"data"})
+    # Large payloads: keep them out of the database.
+    _unrecorded_attributes = frozenset({"data", "clients"})

@@ -1,0 +1,19 @@
+# Example dashboard for Synology SRM Plus.
+# Create a dashboard (Settings -> Dashboards), open the raw configuration editor and paste this.
+title: Synology router
+views:
+  - title: Router
+    path: router
+    icon: mdi:router-wireless
+    type: sections
+    max_columns: 2
+    sections:
+      - type: grid
+        cards:
+          - type: custom:synology-srm-router-card
+      - type: grid
+        cards:
+          - type: custom:synology-srm-clients-card
+            title: Clients
+            sort_by: download
+            max_height: 700

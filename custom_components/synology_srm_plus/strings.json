@@ -107,9 +107,6 @@
       "wifi_channel": {
         "name": "Wi-Fi {band} channel"
       },
-      "wifi_clients": {
-        "name": "{band} clients"
-      },
       "wifi_signal": {
         "name": "Wi-Fi {band} average signal"
       },
@@ -130,6 +127,22 @@
       },
       "client_tx": {
         "name": "Client upload ({group})"
+      },
+      "clients_group": {
+        "name": "Clients {group}"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options",
+        "data": {
+          "track_clients": "Create a device tracker for every client"
+        },
+        "data_description": {
+          "track_clients": "Adds one presence entity per device connected to the router (like the built-in integration). The client list is always available as attributes of the connection sensors."
+        }
       }
     }
   }

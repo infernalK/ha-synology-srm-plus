@@ -8,7 +8,12 @@ from typing import Any
 from synology_srm.http import SynologyException
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlowWithReload,
+)
 from homeassistant.const import (
     CONF_HOST,
     CONF_PASSWORD,
@@ -17,8 +22,10 @@ from homeassistant.const import (
     CONF_USERNAME,
     CONF_VERIFY_SSL,
 )
+from homeassistant.core import callback
 
 from .const import (
+    CONF_TRACK_CLIENTS,
     DEFAULT_PORT,
     DEFAULT_SSL,
     DEFAULT_USERNAME,
@@ -30,10 +37,34 @@ from .coordinator import build_client
 _LOGGER = logging.getLogger(__name__)
 
 
+class SrmOptionsFlow(OptionsFlowWithReload):
+    """Handle the options."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema({vol.Required(CONF_TRACK_CLIENTS, default=False): bool}),
+                self.config_entry.options,
+            ),
+        )
+
+
 class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow."""
 
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> SrmOptionsFlow:
+        """Return the options flow."""
+        return SrmOptionsFlow()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None

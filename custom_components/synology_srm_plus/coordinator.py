@@ -21,6 +21,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
+from .clients import normalize_clients
 from .const import DOMAIN, SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
@@ -44,6 +45,7 @@ ENDPOINTS: dict[str, tuple[str, Callable[[synology_srm.Client], Any]]] = {
         lambda c: c.core.get_ngfw_traffic("live"),
     ),
     "external_ip": ("SYNO.Core.DDNS.ExtIP", lambda c: c.core.list_ddns_extip()),
+    "ddns": ("SYNO.Core.DDNS.Record", lambda c: c.core.list_ddns_record()),
     "system_info": ("SYNO.Mesh.System.Info", lambda c: c.mesh.get_system_info()),
     "connection_status": (
         "SYNO.Core.Network.Router.ConnectionStatus",
@@ -141,6 +143,9 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.warning("SRM call %s (%s) crashed: %r", key, api, err)
         if called and failures == called:
             raise UpdateFailed("All SRM calls failed")
+        results["client_list"] = normalize_clients(
+            results.get("clients"), results.get("wifi_devices")
+        )
         return results
 
     async def _async_update_data(self) -> dict[str, Any]:
