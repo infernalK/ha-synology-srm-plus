@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.3
+
+- Cards: rates and Safe Access times are now read in the unit Home Assistant shows them in (Mbit/s, hours). Before, the router throughput, the client traffic tiles and the Safe Access total could be far too small.
+- Safe Access: a device belongs to a single profile.
+
 ## 0.5.2
 
 - Safe Access: the devices of each profile (online state, IP, internet time) as an attribute and in the card (click a profile to expand); each client shows its Safe Access profile.

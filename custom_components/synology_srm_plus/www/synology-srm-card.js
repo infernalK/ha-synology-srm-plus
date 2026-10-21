@@ -81,6 +81,22 @@ function strings(hass) {
   return I18N[lang.slice(0, 2)] || I18N.en;
 }
 
+// Home Assistant shows these sensors in their display unit (Mbit/s, h...), so read the unit.
+const RATE_UNITS = { 'bit/s': 1 / 8, 'kbit/s': 125, 'Mbit/s': 125000, 'Gbit/s': 125000000, 'B/s': 1, 'kB/s': 1000, 'MB/s': 1e6, 'GB/s': 1e9, 'KiB/s': 1024, 'MiB/s': 1048576, 'GiB/s': 1073741824 };
+function rateOf(stateObj) {
+  const value = Number(stateObj && stateObj.state);
+  if (!Number.isFinite(value)) return 0;
+  const unit = stateObj.attributes && stateObj.attributes.unit_of_measurement;
+  return value * (RATE_UNITS[unit] ?? 1);
+}
+
+function minutesOf(stateObj) {
+  const value = Number(stateObj && stateObj.state);
+  if (!Number.isFinite(value)) return NaN;
+  const unit = stateObj.attributes && stateObj.attributes.unit_of_measurement;
+  return value * ({ s: 1 / 60, min: 1, h: 60, d: 1440 }[unit] ?? 1);
+}
+
 function fmtRate(bytesPerSecond) {
   const bits = (Number(bytesPerSecond) || 0) * 8;
   if (bits >= 1e6) return `${(bits / 1e6).toFixed(bits >= 1e7 ? 0 : 1)} Mbit/s`;
@@ -292,7 +308,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
         const count = g === 'Total' ? first('clients_online') : groupSensors.find((s) => s.attributes.group === g);
         const label = g === 'Total' ? t.total : g === 'Wired' ? t.wired : `${t.wifi} ${g}`;
         const n = count ? ` · ${esc(count.state)} ${Number(count.state) === 1 ? t.client : t.clients}` : '';
-        return `<div class="tile" data-entity="${esc((rx[g] || tx[g]).entity_id)}"><div class="k">${esc(label)}${n}</div><div class="v"><span class="down">↓ ${fmtRate(rx[g] ? rx[g].state : 0)}</span></div><div class="v"><span class="up">↑ ${fmtRate(tx[g] ? tx[g].state : 0)}</span></div></div>`;
+        return `<div class="tile" data-entity="${esc((rx[g] || tx[g]).entity_id)}"><div class="k">${esc(label)}${n}</div><div class="v"><span class="down">↓ ${fmtRate(rateOf(rx[g]))}</span></div><div class="v"><span class="up">↑ ${fmtRate(rateOf(tx[g]))}</span></div></div>`;
       })
       .join('');
 
@@ -306,7 +322,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
           a.average_signal != null ? `${t.signal} ${esc(a.average_signal)}%` : '',
           (a.ssids || []).map(esc).join(', '),
           bandRx[s.attributes.group] || bandTx[s.attributes.group]
-            ? `rx ${fmtRate(bandRx[s.attributes.group] ? bandRx[s.attributes.group].state : 0)} · tx ${fmtRate(bandTx[s.attributes.group] ? bandTx[s.attributes.group].state : 0)}`
+            ? `rx ${fmtRate(rateOf(bandRx[s.attributes.group]))} · tx ${fmtRate(rateOf(bandTx[s.attributes.group]))}`
             : '',
         ].filter(Boolean);
         return `<div class="tile" data-entity="${esc(s.entity_id)}"><div class="k">${esc(t.wifi)} ${esc(a.group)}</div><div class="v">${esc(s.state)} ${Number(s.state) === 1 ? t.client : t.clients}</div><div class="s">${lines.join(' · ')}</div></div>`;
@@ -346,7 +362,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
     const rtx = first('router_tx');
     const conn = first('connected_devices');
     const routerTile = rrx || rtx
-      ? `<div class="tile" data-entity="${esc((rrx || rtx).entity_id)}"><div class="k">${esc(t.router_throughput)}${conn ? ` · ${esc(conn.state)} ${t.devices}` : ''}</div><div class="v">rx ${fmtRate(rrx ? rrx.state : 0)}</div><div class="v">tx ${fmtRate(rtx ? rtx.state : 0)}</div></div>`
+      ? `<div class="tile" data-entity="${esc((rrx || rtx).entity_id)}"><div class="k">${esc(t.router_throughput)}${conn ? ` · ${esc(conn.state)} ${t.devices}` : ''}</div><div class="v">rx ${fmtRate(rateOf(rrx))}</div><div class="v">tx ${fmtRate(rateOf(rtx))}</div></div>`
       : '';
     const portSpeeds = all('port_speed')
       .sort((a, b) => (a.attributes.port === 'WAN' ? '' : String(a.attributes.port)).localeCompare(b.attributes.port === 'WAN' ? '' : String(b.attributes.port)))
@@ -687,7 +703,7 @@ class SynologySrmSafeAccessCard extends SrmEntityCard {
           : '';
         return `<div class="row" style="grid-template-columns:1fr auto" data-profile="${esc(name)}"><div style="min-width:0"><div class="nm">${esc(name)}${isBlocked(name) ? ` <span class="badge bad">${esc(t.blocked_now)}</span>` : ''}${isConcerned(name) ? ` <span class="badge" style="background:var(--warning-color,#ffa600)">${esc(t.concerned)}</span>` : ''}</div>
           <div class="meta">${open ? '▾' : '▸'} ${devs.length} ${esc(t.devices)}${devs.length ? ` (${nOnline} ${esc(t.online)})` : ''} · ${flag(a.web_filter, '🌐', t.filter)}${flag(a.safe_search, '🔎', t.safe_search)}${flag(a.time_quota, '⏱', t.quota)}${flag(a.block_time, '🌙', t.schedule)}${hits ? `· ${esc(t.hits)}: ${hits}` : ''}</div></div>
-          <div class="rt"><div>${esc(hm(Number(tm.state)))}</div><div class="meta">${esc(t.internet_time)}</div></div>${deviceList}</div>`;
+          <div class="rt"><div>${esc(hm(minutesOf(tm)))}</div><div class="meta">${esc(t.internet_time)}</div></div>${deviceList}</div>`;
       })
       .join('');
 
