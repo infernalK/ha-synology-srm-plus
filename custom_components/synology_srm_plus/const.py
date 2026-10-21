@@ -3,7 +3,7 @@
 from datetime import timedelta
 
 DOMAIN = "synology_srm_plus"
-VERSION = "0.4.1"  # keep in sync with manifest.json (also busts the card cache)
+VERSION = "0.4.2"  # keep in sync with manifest.json (also busts the card cache)
 
 CONF_TRACK_CLIENTS = "track_clients"
 

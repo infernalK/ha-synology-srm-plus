@@ -69,6 +69,14 @@ ENDPOINTS: dict[str, tuple[str, Callable[[synology_srm.Client], Any]]] = {
 }
 
 
+# Probed once at startup (discovery): lease data might hold a last-seen date.
+DHCP_PROBES: tuple[tuple[str, str], ...] = (
+    ("SYNO.Core.Network.DHCPServer.ClientList", "get"),
+    ("SYNO.Core.Network.DHCPServer.ClientList", "list"),
+    ("SYNO.Core.Network.DHCPServer.Reservation", "list"),
+)
+
+
 def build_client(data: dict[str, Any]) -> synology_srm.Client:
     """Create a (blocking) SRM client from config entry data."""
     client = synology_srm.Client(
@@ -119,10 +127,27 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._available_apis = set(apis)
             _LOGGER.debug("SRM exposes %d APIs", len(apis))
 
+    def _probe_dhcp(self) -> None:
+        """Log (once) what the DHCP APIs return: could give a last-seen date."""
+        for api, method in DHCP_PROBES:
+            if self._available_apis is not None and api not in self._available_apis:
+                continue
+            try:
+                result = self.client.http.call(
+                    endpoint="entry.cgi", api=api, method=method, version=1
+                )
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.info("SRM probe %s.%s failed: %r", api, method, err)
+            else:
+                _LOGGER.info(
+                    "SRM probe %s.%s raw: %s", api, method, str(result)[:3500]
+                )
+
     def _fetch(self) -> dict[str, Any]:
         """Call every endpoint the router offers, isolating failures (blocking)."""
         if not self._apis_loaded:
             self._load_available_apis()
+            self._probe_dhcp()
         results: dict[str, Any] = {}
         failures = 0
         called = 0

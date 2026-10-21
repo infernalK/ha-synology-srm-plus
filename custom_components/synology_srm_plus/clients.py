@@ -102,6 +102,11 @@ def normalize_clients(
             if extra:
                 item["extra"] = extra
         cleaned = {k: v for k, v in item.items() if v is not None and v != ""}
+        if not is_online:
+            # Offline devices: drop the flags and rates that are just "false" / 0.
+            cleaned = {
+                k: v for k, v in cleaned.items() if v is not False and v != 0
+            }
         (online if is_online else offline).append(cleaned)
     online.sort(key=lambda c: str(c["name"]).lower())
     offline.sort(key=lambda c: str(c["name"]).lower())
