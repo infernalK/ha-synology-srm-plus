@@ -1,0 +1,49 @@
+name: Router model report / bug
+description: Report how the integration behaves on your Synology router
+labels: [model-report]
+body:
+  - type: input
+    id: model
+    attributes:
+      label: Router model
+      placeholder: RT2600ac, RT6600ax, WRX560, MR2200ac...
+    validations:
+      required: true
+  - type: input
+    id: srm
+    attributes:
+      label: SRM version
+      placeholder: SRM 1.3.2-9366 Update 3
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Network mode
+      options: [Router, Bridge / access point, Mesh (several nodes), Not sure]
+  - type: input
+    id: ha
+    attributes:
+      label: Home Assistant version
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What works, what is missing or wrong?
+      description: Sensors that are missing, unavailable, or show wrong values (and the value you expected).
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics
+      description: |
+        Settings → Devices & services → Synology SRM Plus → ⋮ → Download diagnostics.
+        Attach the file or paste the "apis" and "data" parts. Addresses and serial number are
+        redacted, but please check it before posting.
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log lines
+      render: text

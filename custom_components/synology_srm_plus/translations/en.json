@@ -121,6 +121,15 @@
       },
       "link_ip": {
         "name": "{interface} IP address"
+      },
+      "clients_online": {
+        "name": "Online clients"
+      },
+      "client_rx": {
+        "name": "Client download ({group})"
+      },
+      "client_tx": {
+        "name": "Client upload ({group})"
       }
     }
   }

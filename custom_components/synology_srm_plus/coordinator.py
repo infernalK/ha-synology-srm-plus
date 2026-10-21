@@ -57,6 +57,10 @@ ENDPOINTS: dict[str, tuple[str, Callable[[synology_srm.Client], Any]]] = {
         "SYNO.Core.Network.Ethernet",
         _raw("SYNO.Core.Network.Ethernet", "list"),
     ),
+    "clients": (
+        "SYNO.Core.Network.NSM.Device",
+        lambda c: c.core.get_network_nsm_device({"is_online": True}),
+    ),
     "wifi_radio": ("SYNO.Wifi.Radio.Status", _raw("SYNO.Wifi.Radio.Status")),
     "wifi_devices": ("SYNO.Wifi.Device", _raw("SYNO.Wifi.Device")),
 }
@@ -94,6 +98,11 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         # None until the API list has been read; then the set of API names.
         self._available_apis: set[str] | None = None
         self._apis_loaded = False
+
+    @property
+    def available_apis(self) -> set[str] | None:
+        """Return the API names offered by the router, if known."""
+        return self._available_apis
 
     def _load_available_apis(self) -> None:
         """Read (once) the API names offered by the router."""

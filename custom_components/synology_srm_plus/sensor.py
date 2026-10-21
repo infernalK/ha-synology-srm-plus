@@ -243,6 +243,9 @@ def _interface_descriptions(name: str) -> list[SrmSensorDescription]:
         "suggested_display_precision": 1,
         "state_class": SensorStateClass.MEASUREMENT,
         "placeholders": {"interface": name},
+        # These counters do not seem to include hardware-accelerated forwarding:
+        # prefer the client traffic sensors.
+        "entity_registry_enabled_default": False,
     }
     return [
         SrmSensorDescription(
@@ -367,6 +370,57 @@ def _wifi_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
     return out
 
 
+def _client_group(client: dict[str, Any]) -> str:
+    """Return the band of a Wi-Fi client, or 'Wired'."""
+    if client.get("is_wireless"):
+        return str(client.get("band") or "Wi-Fi")
+    return "Wired"
+
+
+def _client_rate(d: dict[str, Any], field: str, group: str | None) -> float | None:
+    clients = d.get("clients")
+    if not isinstance(clients, list):
+        return None
+    return sum(
+        c.get(field) or 0
+        for c in clients
+        if isinstance(c, dict) and (group is None or _client_group(c) == group)
+    )
+
+
+def _client_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
+    """Traffic summed over the online clients (total and per band / wired)."""
+    clients = data.get("clients")
+    if not isinstance(clients, list):
+        return []
+    groups = sorted({_client_group(c) for c in clients if isinstance(c, dict)})
+    out = [
+        SrmSensorDescription(
+            key="clients_online",
+            translation_key="clients_online",
+            state_class=SensorStateClass.MEASUREMENT,
+            value_fn=lambda d: len(d["clients"]) if d.get("clients") is not None else None,
+        )
+    ]
+    for group in (None, *groups):
+        label = "Total" if group is None else group
+        for field, tkey in (("transfer_rx_rate", "client_rx"), ("transfer_tx_rate", "client_tx")):
+            out.append(
+                SrmSensorDescription(
+                    key=f"{tkey}_{label}",
+                    translation_key=tkey,
+                    placeholders={"group": label},
+                    device_class=SensorDeviceClass.DATA_RATE,
+                    native_unit_of_measurement=UnitOfDataRate.BYTES_PER_SECOND,
+                    suggested_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
+                    suggested_display_precision=1,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    value_fn=lambda d, f=field, g=group: _client_rate(d, f, g),
+                )
+            )
+    return out
+
+
 def _network_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
     """Connection status, network mode and Ethernet links."""
     out: list[SrmSensorDescription] = []
@@ -435,6 +489,7 @@ def _network_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
 def _dynamic_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
     """Build the per-node / per-interface / per-disk sensors from the first data."""
     out: list[SrmSensorDescription] = [
+        *_client_descriptions(data),
         *_wifi_descriptions(data),
         *_network_descriptions(data),
     ]

@@ -121,6 +121,15 @@
       },
       "link_ip": {
         "name": "Adresse IP {interface}"
+      },
+      "clients_online": {
+        "name": "Clients en ligne"
+      },
+      "client_rx": {
+        "name": "Téléchargement clients ({group})"
+      },
+      "client_tx": {
+        "name": "Envoi clients ({group})"
       }
     }
   }
