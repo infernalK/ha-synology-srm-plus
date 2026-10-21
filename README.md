@@ -26,7 +26,7 @@ Developed and tested on an **RT2600ac (SRM 1.3.2)**. The built-in `synology_srm`
 | Ports | link speed and link state of the WAN port and each LAN port |
 | Storage | **USB disk usage** (%, used, total), disk and volume activity |
 | Security | threat events (24 h / 7 days), new devices, admin sessions, blocked IPs, port forwarding rules, threat protection on/off, **warnings** when the admin interface is reachable from the Internet or someone connected from outside |
-| Safe Access (parental control) | per profile: internet time, status, "blocked now" schedule, which filters are active, flagged websites |
+| Safe Access (parental control) | per profile: **its devices** (online or not, with their internet time), internet time, status, "blocked now" schedule, which filters are active, flagged websites; each client also shows its profile |
 | Optional | presence entities (device trackers) for the clients you choose, or for all of them |
 
 Polling interval: 60 seconds (slow-changing data is read less often to spare the router). Everything is read locally from the SRM web API (`https://<router>:8001`) with the [synology-srm](https://github.com/aerialls/synology-srm) library.
@@ -95,7 +95,7 @@ Use an **administrator** account on the router (a dedicated one such as `ha` is 
 - USB sizes are reported in MiB (a 32 GB key shows about 29 000).
 - Load averages are reported by SRM multiplied by 100 and are divided back.
 - The Wi-Fi signal value is shown as a percentage; Synology does not document its scale.
-- Safe Access internet time is shown in minutes, over the period SRM reports; the unit and the period are not documented.
+- Safe Access internet time is in minutes, over a 24-hour window (a device that is always online shows about 24 h).
 - **Last seen** only starts when the integration is installed: devices that were already offline have no date until they reconnect.
 
 ## Exploring your router

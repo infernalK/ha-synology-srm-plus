@@ -147,6 +147,16 @@ ENDPOINTS: dict[str, tuple[str, Callable[[synology_srm.Client], Any], int]] = {
         _raw("SYNO.SafeAccess.Overview.Statistics"),
         5,
     ),
+    "safe_devices": (
+        "SYNO.SafeAccess.AccessControl.ConfigGroup.Device",
+        _raw("SYNO.SafeAccess.AccessControl.ConfigGroup.Device"),
+        5,
+    ),
+    "safe_device_time": (
+        "SYNO.SafeAccess.AccessControl.ConfigGroup.Device.TimeSpent",
+        _raw("SYNO.SafeAccess.AccessControl.ConfigGroup.Device.TimeSpent"),
+        10,
+    ),
     "safe_schedule": (
         "SYNO.SafeAccess.AccessControl.Profile.Schedule",
         _raw("SYNO.SafeAccess.AccessControl.Profile.Schedule"),
@@ -374,7 +384,27 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._poll += 1
         normalized = normalize_clients(results.get("clients"), results.get("wifi_devices"))
         results["client_list"], results["offline_list"] = normalized or (None, None)
+        self._annotate_safe_profiles(results)
         return results
+
+    @staticmethod
+    def _annotate_safe_profiles(results: dict[str, Any]) -> None:
+        """Add the Safe Access profile of each client (from the group -> devices map)."""
+        groups = (results.get("safe_devices") or {}).get("config_groups")
+        profiles = (results.get("safe_profiles") or {}).get("profiles")
+        if not isinstance(groups, list) or not isinstance(profiles, list):
+            return
+        names = {p.get("profile_id"): p.get("name") for p in profiles if isinstance(p, dict)}
+        by_mac: dict[str, list[str]] = {}
+        for group in groups:
+            name = names.get(group.get("config_group_id")) if isinstance(group, dict) else None
+            for mac in (group.get("devices") or []) if name else []:
+                by_mac.setdefault(str(mac).lower(), []).append(str(name))
+        for key in ("client_list", "offline_list"):
+            for client in results.get(key) or []:
+                profile = by_mac.get(client.get("mac", ""))
+                if profile:
+                    client["safe_profile"] = ", ".join(profile)
 
     def _track_last_seen(self, data: dict[str, Any]) -> None:
         """Remember when each client was last online; fill it in for offline ones."""

@@ -83,6 +83,9 @@ DATA = {
     "port_forward": {"rules": []},
     "safe_profiles": {"profiles": [{"profile_id": 2, "name": "Kids", "enable_filter": True,
                                     "enable_safe_search": True, "enable_timequota": True, "enable_blocktime": True}]},
+    "safe_devices": {"config_groups": [{"config_group_id": 2, "devices": ["AA:BB:CC:00:00:01", "aa:bb:cc:00:00:04", "aa:bb:cc:00:00:77"]}]},
+    "safe_device_time": {"config_groups": [{"config_group_id": 2, "device_timespent": {
+        "aa:bb:cc:00:00:01": {"total_spent": {"normal": 42, "reward": 0}}}}]},
     "safe_stats": {"config_groups": [{"id": 2, "concerned_status": "concerned", "time_spent_on_internet": 212,
                                       "inappropriate_website_hit": {"example.test": {"total": 18, "aa:bb": 18}}}]},
     "safe_schedule": {"profiles": [{"profile_id": 2, "schedules": {
@@ -100,6 +103,7 @@ def main() -> int:
     assert "max_link_rate" not in offline[0] and "guest" not in offline[0], offline[0]
     assert online[1]["download"] == 4000000 and online[1]["interface"] == "wlan100", online[1]
     DATA["client_list"], DATA["offline_list"] = online, offline
+    coordinator.SrmCoordinator._annotate_safe_profiles(DATA)  # noqa: SLF001
 
     en = json.loads((ROOT / "custom_components/synology_srm_plus/translations/en.json").read_text("utf-8"))
     fr = json.loads((ROOT / "custom_components/synology_srm_plus/translations/fr.json").read_text("utf-8"))
@@ -129,6 +133,13 @@ def main() -> int:
             for field in re.findall(r"{(\w+)}", entry["name"]):
                 if field not in (desc.placeholders or {}):
                     errors.append(f"{label}: {lang} name needs placeholder {field}")
+
+    kids = next(d for _, d in descriptions if d.key == "safe_time_2")
+    devices = kids.attrs_fn(DATA)["devices"]
+    assert [x["name"] for x in devices] == ["Laptop", "aa:bb:cc:00:00:77", "Old phone"], devices
+    assert devices[0]["online"] and devices[0]["internet_minutes"] == 42, devices[0]
+    assert not devices[1]["online"], devices[1]
+    assert online[1]["safe_profile"] == "Kids", online[1]
 
     # secrets must not reach the log
     masked = coordinator.redact(

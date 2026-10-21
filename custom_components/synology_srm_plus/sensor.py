@@ -836,6 +836,33 @@ def safe_schedule(d: dict[str, Any], pid: Any) -> dict[str, Any]:
     return found.get("schedules") or {}
 
 
+def _safe_devices(d: dict[str, Any], pid: Any) -> list[dict[str, Any]]:
+    """Devices of a Safe Access profile, with their name, state and internet time."""
+    group = _find(_dig(d.get("safe_devices"), "config_groups"), config_group_id=pid) or {}
+    spent_group = _find(_dig(d.get("safe_device_time"), "config_groups"), config_group_id=pid) or {}
+    times = spent_group.get("device_timespent")
+    times = {str(k).lower(): v for k, v in times.items()} if isinstance(times, dict) else {}
+    online = {c.get("mac"): c for c in d.get("client_list") or [] if c.get("mac")}
+    offline = {c.get("mac"): c for c in d.get("offline_list") or [] if c.get("mac")}
+    out: list[dict[str, Any]] = []
+    for raw in group.get("devices") or []:
+        mac = str(raw).lower()
+        client = online.get(mac) or offline.get(mac) or {}
+        entry: dict[str, Any] = {
+            "name": client.get("name") or mac,
+            "mac": mac,
+            "online": mac in online,
+        }
+        if client.get("ip"):
+            entry["ip"] = client["ip"]
+        minutes = _dig(times.get(mac), "total_spent", "normal")
+        if isinstance(minutes, (int, float)):
+            entry["internet_minutes"] = minutes
+        out.append(entry)
+    out.sort(key=lambda e: (not e["online"], str(e["name"]).lower()))
+    return out
+
+
 def _safe_attrs(d: dict[str, Any], pid: Any) -> dict[str, Any]:
     profile = _find(safe_profiles(d), profile_id=pid) or {}
     stat = safe_stat(d, pid)
@@ -843,6 +870,7 @@ def _safe_attrs(d: dict[str, Any], pid: Any) -> dict[str, Any]:
     quotas = safe_schedule(d, pid).get("timequotas")
     return {
         "profile": profile.get("name"),
+        "devices": _safe_devices(d, pid) or None,
         "concerned_status": stat.get("concerned_status"),
         "web_filter": profile.get("enable_filter"),
         "safe_search": profile.get("enable_safe_search"),

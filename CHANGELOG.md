@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2
+
+- Safe Access: the devices of each profile (online state, IP, internet time) as an attribute and in the card (click a profile to expand); each client shows its Safe Access profile.
+
 ## 0.5.1
 
 - USB disk usage and blocked IPs now work: some DSM APIs live behind another endpoint than `entry.cgi`, which is read from the router's API list.

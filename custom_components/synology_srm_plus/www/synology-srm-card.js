@@ -21,7 +21,7 @@ const I18N = {
     search: 'Search a client…', all: 'All', sort: 'Sort', name: 'Name', download: 'Download',
     upload: 'Upload', nothing: 'No client', no_data: 'No Synology SRM Plus data found.', offline: 'Offline', ip: 'IP address',
     offline_clients: 'Offline clients', last_seen: 'Last seen', ago: 'ago', router_throughput: 'Router throughput',
-    devices: 'devices', ports: 'Ports', usb: 'USB storage', no_link: 'no link', security: 'Security', threat_prevention: 'Threat prevention', profiles: 'profiles', threats: 'Threat events',
+    devices: 'devices', ports: 'Ports', usb: 'USB storage', no_link: 'no link', security: 'Security', threat_prevention: 'Threat prevention', profiles: 'profiles', online: 'online', threats: 'Threat events',
     last24: '24 h', last7: '7 days', new_devices: 'New devices', admin_sessions: 'Admin sessions', blocked_ips: 'Blocked IPs',
     forwards: 'Port forwards', protected: 'Protected', unprotected: 'Not protected', exposed: 'Admin reachable from the Internet',
     external_session: 'Admin session from the Internet', safe: 'Safe Access', internet_time: 'Internet time',
@@ -34,7 +34,7 @@ const I18N = {
       guest: 'Guest', blocked: 'Blocked', parental_control: 'Parental control', qos: 'QoS',
       high_priority: 'High priority', low_priority: 'Low priority', beamforming: 'Beamforming',
       interface: 'Interface', connection: 'Link', band: 'Band', wifi_bytes_rx: 'Wi-Fi bytes (rx)',
-      wifi_bytes_tx: 'Wi-Fi bytes (tx)', last_seen: 'Last seen',
+      wifi_bytes_tx: 'Wi-Fi bytes (tx)', last_seen: 'Last seen', safe_profile: 'Safe Access profile',
     },
   },
   fr: {
@@ -45,7 +45,7 @@ const I18N = {
     search: 'Rechercher un client…', all: 'Tous', sort: 'Tri', name: 'Nom', download: 'Téléchargement',
     upload: 'Envoi', nothing: 'Aucun client', no_data: 'Aucune donnée Synology SRM Plus trouvée.', offline: 'Hors ligne', ip: 'Adresse IP',
     offline_clients: 'Clients hors ligne', last_seen: 'Vu il y a', ago: '', router_throughput: 'Débit du routeur',
-    devices: 'appareils', ports: 'Ports', usb: 'Stockage USB', no_link: 'pas de lien', security: 'Sécurité', threat_prevention: 'Protection contre les menaces', profiles: 'profils', threats: 'Menaces détectées',
+    devices: 'appareils', ports: 'Ports', usb: 'Stockage USB', no_link: 'pas de lien', security: 'Sécurité', threat_prevention: 'Protection contre les menaces', profiles: 'profils', online: 'en ligne', threats: 'Menaces détectées',
     last24: '24 h', last7: '7 jours', new_devices: 'Nouveaux appareils', admin_sessions: "Sessions d'administration", blocked_ips: 'IP bloquées',
     forwards: 'Redirections de ports', protected: 'Protégé', unprotected: 'Non protégé', exposed: "Administration joignable depuis Internet",
     external_session: "Session d'administration depuis Internet", safe: 'Safe Access', internet_time: 'Temps sur internet',
@@ -58,7 +58,7 @@ const I18N = {
       guest: 'Invité', blocked: 'Bloqué', parental_control: 'Contrôle parental', qos: 'QoS',
       high_priority: 'Priorité haute', low_priority: 'Priorité basse', beamforming: 'Beamforming',
       interface: 'Interface', connection: 'Lien', band: 'Bande', wifi_bytes_rx: 'Octets Wi-Fi (rx)',
-      wifi_bytes_tx: 'Octets Wi-Fi (tx)', last_seen: 'Dernière connexion',
+      wifi_bytes_tx: 'Octets Wi-Fi (tx)', last_seen: 'Dernière connexion', safe_profile: 'Profil Safe Access',
     },
   },
 };
@@ -655,6 +655,7 @@ class SynologySrmSafeAccessCard extends SrmEntityCard {
     const hass = this._hass;
     const t = strings(hass);
     const all = (key) => found[key] || [];
+    this._open = this._open || new Set();
     const times = mapBy(all('safe_time'), 'profile');
     const status = mapBy(all('safe_status'), 'profile');
     const blocked = mapBy(all('safe_blocked'), 'profile');
@@ -668,16 +669,25 @@ class SynologySrmSafeAccessCard extends SrmEntityCard {
       (nConcerned ? `<span class="badge" style="background:var(--warning-color,#ffa600)">${nConcerned} ${esc(t.concerned.toLowerCase())}</span>` : '');
 
     const flag = (on, icon, label) => `<span title="${esc(label)}" style="opacity:${on ? 1 : 0.25};margin-right:6px">${icon}</span>`;
+    const hm = (minutes) => (Number.isFinite(minutes) ? `${Math.floor(minutes / 60)} h ${String(Math.round(minutes % 60)).padStart(2, '0')}` : '');
     const rows = profiles
       .map((name) => {
         const tm = times[name];
         const a = tm.attributes;
-        const minutes = Number(tm.state);
-        const h = Number.isFinite(minutes) ? `${Math.floor(minutes / 60)} h ${String(Math.round(minutes % 60)).padStart(2, '0')}` : '';
+        const devs = Array.isArray(a.devices) ? a.devices : [];
+        const nOnline = devs.filter((d) => d.online).length;
+        const open = this._open.has(name);
         const hits = a.inappropriate_websites ? Object.entries(a.inappropriate_websites).map(([k, v]) => `${esc(k)} (${esc(v)})`).join(', ') : '';
-        return `<div class="row" style="grid-template-columns:1fr auto" data-entity="${esc(tm.entity_id)}"><div style="min-width:0"><div class="nm">${esc(name)}${isBlocked(name) ? ` <span class="badge bad">${esc(t.blocked_now)}</span>` : ''}${isConcerned(name) ? ` <span class="badge" style="background:var(--warning-color,#ffa600)">${esc(t.concerned)}</span>` : ''}</div>
-          <div class="meta">${flag(a.web_filter, '🌐', t.filter)}${flag(a.safe_search, '🔎', t.safe_search)}${flag(a.time_quota, '⏱', t.quota)}${flag(a.block_time, '🌙', t.schedule)}${hits ? `· ${esc(t.hits)}: ${hits}` : ''}</div></div>
-          <div class="rt"><div>${esc(h)}</div><div class="meta">${esc(t.internet_time)}</div></div></div>`;
+        const deviceList = open
+          ? `<div style="grid-column:1/-1;padding:4px 0 2px 14px">${
+              devs
+                .map((d) => `<div class="meta" style="opacity:${d.online ? 1 : 0.55}"><span style="color:${d.online ? 'var(--success-color,#43a047)' : 'var(--disabled-text-color,#9e9e9e)'}">●</span> ${esc(d.name)}${d.ip ? ` · ${esc(d.ip)}` : ''}${Number.isFinite(Number(d.internet_minutes)) && d.internet_minutes > 0 ? ` · ${esc(hm(Number(d.internet_minutes)))}` : ''}</div>`)
+                .join('') || `<div class="meta">${esc(t.none)}</div>`
+            }</div>`
+          : '';
+        return `<div class="row" style="grid-template-columns:1fr auto" data-profile="${esc(name)}"><div style="min-width:0"><div class="nm">${esc(name)}${isBlocked(name) ? ` <span class="badge bad">${esc(t.blocked_now)}</span>` : ''}${isConcerned(name) ? ` <span class="badge" style="background:var(--warning-color,#ffa600)">${esc(t.concerned)}</span>` : ''}</div>
+          <div class="meta">${open ? '▾' : '▸'} ${devs.length} ${esc(t.devices)}${devs.length ? ` (${nOnline} ${esc(t.online)})` : ''} · ${flag(a.web_filter, '🌐', t.filter)}${flag(a.safe_search, '🔎', t.safe_search)}${flag(a.time_quota, '⏱', t.quota)}${flag(a.block_time, '🌙', t.schedule)}${hits ? `· ${esc(t.hits)}: ${hits}` : ''}</div></div>
+          <div class="rt"><div>${esc(hm(Number(tm.state)))}</div><div class="meta">${esc(t.internet_time)}</div></div>${deviceList}</div>`;
       })
       .join('');
 
@@ -686,6 +696,13 @@ class SynologySrmSafeAccessCard extends SrmEntityCard {
         <div class="head"><ha-icon icon="mdi:account-child-circle"></ha-icon><div><div class="title">${esc(this._config.title || t.safe)}</div><div class="sub">${profiles.length} ${esc(t.profiles)}</div></div><div class="badges">${badges}</div></div>
         ${rows || `<div class="empty">${esc(t.none)}</div>`}
       </ha-card>`;
+    this.shadowRoot.querySelectorAll('[data-profile]').forEach((el) =>
+      el.addEventListener('click', () => {
+        const name = el.dataset.profile;
+        this._open.has(name) ? this._open.delete(name) : this._open.add(name);
+        this._sig = null;
+        this._update();
+      }));
   }
 }
 

@@ -26,7 +26,7 @@ Développé et testé sur un **RT2600ac (SRM 1.3.2)**. L'intégration native `sy
 | Ports | vitesse et état du lien du port WAN et de chaque port LAN |
 | Stockage | **utilisation du disque USB** (%, utilisé, total), activité des disques et volumes |
 | Sécurité | menaces détectées (24 h / 7 jours), nouveaux appareils, sessions d'administration, IP bloquées, redirections de ports, protection contre les menaces activée ou non, **alertes** si l'interface d'administration est joignable depuis Internet ou si quelqu'un s'est connecté de l'extérieur |
-| Safe Access (contrôle parental) | par profil : temps sur internet, état, plage « bloqué en ce moment », filtres actifs, sites signalés |
+| Safe Access (contrôle parental) | par profil : **ses appareils** (en ligne ou non, avec leur temps sur internet), temps sur internet, état, plage « bloqué en ce moment », filtres actifs, sites signalés ; chaque client indique aussi son profil |
 | Optionnel | entités de présence (device trackers) pour les clients de votre choix, ou pour tous |
 
 Fréquence de relevé : 60 secondes (les données qui changent peu sont lues moins souvent pour ménager le routeur). Tout est lu en local via l'API web de SRM (`https://<routeur>:8001`) avec la bibliothèque [synology-srm](https://github.com/aerialls/synology-srm).
@@ -95,7 +95,7 @@ Utilisez un compte **administrateur** du routeur (un compte dédié comme `ha` e
 - Les tailles USB sont données en Mio (une clé de 32 Go affiche environ 29 000).
 - Les charges moyennes sont fournies par SRM multipliées par 100 et sont divisées en retour.
 - Le signal Wi-Fi est affiché en pourcentage ; Synology ne documente pas son échelle.
-- Le temps sur internet de Safe Access est affiché en minutes, sur la période que SRM rapporte ; l'unité et la période ne sont pas documentées.
+- Le temps sur internet de Safe Access est en minutes, sur une fenêtre de 24 heures (un appareil toujours en ligne affiche environ 24 h).
 - **La dernière connexion** ne commence qu'à l'installation de l'intégration : les appareils déjà hors ligne n'ont pas de date avant de se reconnecter.
 
 ## Explorer votre routeur
