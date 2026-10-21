@@ -51,6 +51,54 @@ def _raw(
     return call
 
 
+def reduce_wifi_networks(payload: Any) -> dict[str, Any]:
+    """Keep only the harmless fields of the Wi-Fi network settings.
+
+    The raw payload also holds the Wi-Fi passwords: they must never reach the
+    coordinator data (which ends up in diagnostics).
+    """
+    profiles = payload.get("profiles") if isinstance(payload, dict) else None
+    networks: list[dict[str, Any]] = []
+    for profile in profiles if isinstance(profiles, list) else []:
+        if not isinstance(profile, dict):
+            continue
+        radios = []
+        for radio in profile.get("radio_list") or []:
+            if not isinstance(radio, dict):
+                continue
+            item = {
+                k: radio[k]
+                for k in ("radio_type", "enable", "hide_ssid", "ssid", "max_connection", "enable_client_isolation")
+                if k in radio
+            }
+            mac_filter = radio.get("mac_filter")
+            item["mac_filter_profile_id"] = (
+                mac_filter.get("profile_id") if isinstance(mac_filter, dict) else None
+            )
+            radios.append(item)
+        networks.append(
+            {
+                "id": profile.get("id"),
+                "name": profile.get("name"),
+                "network_type": profile.get("network_type"),
+                "enable_smart_connect": profile.get("enable_smart_connect"),
+                "radios": radios,
+            }
+        )
+    return {"networks": networks}
+
+
+def _wifi_networks_call(c: synology_srm.Client, endpoint: str = "entry.cgi") -> Any:
+    return reduce_wifi_networks(
+        c.http.call(
+            endpoint=endpoint, api="SYNO.Wifi.Network.Setting", method="get", version=1
+        )
+    )
+
+
+_wifi_networks_call.raw = True  # type: ignore[attr-defined]
+
+
 # key -> (API name, call on the synology_srm client, poll every N updates)
 # The API name is checked against the router's API list: an API the router does
 # not offer is skipped silently (SRM models and firmwares differ). Slow-changing
@@ -147,6 +195,9 @@ ENDPOINTS: dict[str, tuple[str, Callable[[synology_srm.Client], Any], int]] = {
         _raw("SYNO.SafeAccess.Overview.Statistics"),
         5,
     ),
+    "macfilter_devices": ("SYNO.Wifi.MACFilter.Global", _raw("SYNO.Wifi.MACFilter.Global"), 10),
+    "macfilter_profiles": ("SYNO.Wifi.MACFilter.Profile", _raw("SYNO.Wifi.MACFilter.Profile"), 10),
+    "wifi_networks": ("SYNO.Wifi.Network.Setting", _wifi_networks_call, 10),
     "safe_devices": (
         "SYNO.SafeAccess.AccessControl.ConfigGroup.Device",
         _raw("SYNO.SafeAccess.AccessControl.ConfigGroup.Device"),

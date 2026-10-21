@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.4
+
+- MAC filtering (read-only): number of filter profiles, devices in the filter list, whether each Wi-Fi network uses a filter, and the devices the router blocks. Shown in the threat prevention card.
+- The Wi-Fi network settings are reduced to harmless fields before being stored (the raw payload holds the Wi-Fi passwords).
+
 ## 0.5.3
 
 - Cards: rates and Safe Access times are now read in the unit Home Assistant shows them in (Mbit/s, hours). Before, the router throughput, the client traffic tiles and the Safe Access total could be far too small.

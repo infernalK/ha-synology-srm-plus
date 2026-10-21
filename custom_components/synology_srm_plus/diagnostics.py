@@ -22,6 +22,7 @@ TO_REDACT = {
     "ipv6",
     "mac",
     "mac_address",
+    "mac_addr",
     "name",
     "ssid",
     "ssids",

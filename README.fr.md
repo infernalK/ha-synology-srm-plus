@@ -25,7 +25,7 @@ Développé et testé sur un **RT2600ac (SRM 1.3.2)**. L'intégration native `sy
 | Réseau | état de la connexion IPv4 / IPv6, mode réseau (routeur / bridge), IPv4 / IPv6 externes (+ noms DDNS), liens Ethernet (état, vitesse, IP) |
 | Ports | vitesse et état du lien du port WAN et de chaque port LAN |
 | Stockage | **utilisation du disque USB** (%, utilisé, total), activité des disques et volumes |
-| Sécurité | menaces détectées (24 h / 7 jours), nouveaux appareils, sessions d'administration, IP bloquées, redirections de ports, protection contre les menaces activée ou non, **alertes** si l'interface d'administration est joignable depuis Internet ou si quelqu'un s'est connecté de l'extérieur |
+| Sécurité | menaces détectées (24 h / 7 jours), nouveaux appareils, sessions d'administration, IP bloquées et **appareils bloqués**, **filtrage MAC** (profils, liste d'appareils, réseaux Wi-Fi qui l'utilisent), redirections de ports, protection contre les menaces activée ou non, **alertes** si l'interface d'administration est joignable depuis Internet ou si quelqu'un s'est connecté de l'extérieur |
 | Safe Access (contrôle parental) | par profil : **ses appareils** (en ligne ou non, avec leur temps sur internet), temps sur internet, état, plage « bloqué en ce moment », filtres actifs, sites signalés ; chaque client indique aussi son profil |
 | Optionnel | entités de présence (device trackers) pour les clients de votre choix, ou pour tous |
 

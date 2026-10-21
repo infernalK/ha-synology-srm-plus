@@ -22,7 +22,7 @@ RAW_CLIENTS = [
      "is_wireless": True, "connection": "wifi", "band": "5G", "wifi_ssid": "MyHome-5G",
      "signalstrength": 86, "current_rate": 866, "max_rate": 866, "transferRXRate": 4000000,
      "transferTXRate": 280000, "dev_type": "notebook", "mesh_node_name": "Router"},
-    {"hostname": "Camera", "mac": "AA:BB:CC:00:00:02", "ip_addr": "192.0.2.101", "is_online": True,
+    {"hostname": "Camera", "mac": "AA:BB:CC:00:00:02", "ip_addr": "192.0.2.101", "is_online": True, "is_baned": True,
      "is_wireless": True, "connection": "wifi", "band": "2.4G", "signalstrength": 48,
      "transferRXRate": 6000, "transferTXRate": 40000, "dev_type": "camera"},
     {"hostname": "NAS", "mac": "AA:BB:CC:00:00:03", "ip_addr": "192.0.2.11", "is_online": True,
@@ -83,6 +83,14 @@ DATA = {
     "port_forward": {"rules": []},
     "safe_profiles": {"profiles": [{"profile_id": 2, "name": "Kids", "enable_filter": True,
                                     "enable_safe_search": True, "enable_timequota": True, "enable_blocktime": True}]},
+    "macfilter_devices": {"devices": [{"mac_addr": "AA:BB:CC:00:00:04", "name": "Old phone"}], "enable_prevent_broadcast": True},
+    "macfilter_profiles": {"profiles": []},
+    "wifi_networks": coordinator.reduce_wifi_networks({"profiles": [
+        {"id": 0, "name": "Primary Network", "network_type": "primary", "radio_list": [
+            {"radio_type": "2.4G", "enable": True, "ssid": "MyHome", "mac_filter": {"profile_id": -1},
+             "security": {"password": "hunter2", "psk": "secret"}},
+            {"radio_type": "5G", "enable": True, "ssid": "MyHome-5G", "mac_filter": {"profile_id": 3}}]},
+        {"id": 1, "name": "Guest Network", "radio_list": [{"radio_type": "5G", "enable": False, "mac_filter": {"profile_id": -1}}]}]}),
     "safe_devices": {"config_groups": [{"config_group_id": 2, "devices": ["AA:BB:CC:00:00:01", "aa:bb:cc:00:00:04", "aa:bb:cc:00:00:77"]}]},
     "safe_device_time": {"config_groups": [{"config_group_id": 2, "device_timespent": {
         "aa:bb:cc:00:00:01": {"total_spent": {"normal": 42, "reward": 0}}}}]},
@@ -92,6 +100,10 @@ DATA = {
         "blocktime_current": {"begin_time": 1, "end_time": 2}, "blocktime_next": {"begin_time": 3, "end_time": 4},
         "timequotas": [{"quota": 120, "weekday": 0}]}}]},
 }
+
+
+def values_of(descriptions, key):
+    return next(d.value_fn(DATA) for _, d in descriptions if d.key == key)
 
 
 def main() -> int:
@@ -140,6 +152,11 @@ def main() -> int:
     assert devices[0]["online"] and devices[0]["internet_minutes"] == 42, devices[0]
     assert not devices[1]["online"], devices[1]
     assert online[1]["safe_profile"] == "Kids", online[1]
+
+    assert "hunter2" not in json.dumps(DATA["wifi_networks"]), "Wi-Fi password leaked into the data"
+    assert values_of(descriptions, "wifi_mac_filter_0") is True and values_of(descriptions, "wifi_mac_filter_1") is False
+    assert values_of(descriptions, "mac_filter_devices") == 1 and values_of(descriptions, "mac_filter_profiles") == 0
+    assert values_of(descriptions, "blocked_devices") == 1, values_of(descriptions, "blocked_devices")
 
     # secrets must not reach the log
     masked = coordinator.redact(

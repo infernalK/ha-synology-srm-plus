@@ -190,6 +190,15 @@
       },
       "safe_status": {
         "name": "Safe Access {profile} état"
+      },
+      "mac_filter_profiles": {
+        "name": "Profils de filtrage MAC"
+      },
+      "mac_filter_devices": {
+        "name": "Liste du filtrage MAC"
+      },
+      "blocked_devices": {
+        "name": "Appareils bloqués"
       }
     },
     "binary_sensor": {
@@ -207,6 +216,9 @@
       },
       "safe_blocked": {
         "name": "Safe Access {profile} bloqué"
+      },
+      "wifi_mac_filter": {
+        "name": "Filtrage MAC actif {network}"
       }
     }
   },

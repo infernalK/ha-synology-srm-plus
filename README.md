@@ -25,7 +25,7 @@ Developed and tested on an **RT2600ac (SRM 1.3.2)**. The built-in `synology_srm`
 | Network | IPv4 / IPv6 connection status, network mode (router / bridge), external IPv4 / IPv6 (+ DDNS names), Ethernet links (status, speed, IP) |
 | Ports | link speed and link state of the WAN port and each LAN port |
 | Storage | **USB disk usage** (%, used, total), disk and volume activity |
-| Security | threat events (24 h / 7 days), new devices, admin sessions, blocked IPs, port forwarding rules, threat protection on/off, **warnings** when the admin interface is reachable from the Internet or someone connected from outside |
+| Security | threat events (24 h / 7 days), new devices, admin sessions, blocked IPs and **blocked devices**, **MAC filtering** (profiles, device list, Wi-Fi networks that use it), port forwarding rules, threat protection on/off, **warnings** when the admin interface is reachable from the Internet or someone connected from outside |
 | Safe Access (parental control) | per profile: **its devices** (online or not, with their internet time), internet time, status, "blocked now" schedule, which filters are active, flagged websites; each client also shows its profile |
 | Optional | presence entities (device trackers) for the clients you choose, or for all of them |
 

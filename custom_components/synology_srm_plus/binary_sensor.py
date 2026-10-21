@@ -66,6 +66,16 @@ def _block_attrs(d: dict[str, Any], pid: Any) -> dict[str, Any]:
     return {"next_block_start": begin} if begin else {}
 
 
+def _network(d: dict[str, Any], net_id: Any) -> dict[str, Any]:
+    return _find(_dig(d.get("wifi_networks"), "networks"), id=net_id) or {}
+
+
+def _filter_profile_ids(d: dict[str, Any], net_id: Any) -> list[Any]:
+    """Ids of the MAC filter profiles applied to a Wi-Fi network (-1 means none)."""
+    ids = [r.get("mac_filter_profile_id") for r in _network(d, net_id).get("radios") or []]
+    return [i for i in ids if isinstance(i, int) and i >= 0]
+
+
 def _descriptions(data: dict[str, Any]) -> list[SrmBinaryDescription]:
     out: list[SrmBinaryDescription] = []
     if isinstance(data.get("tps_sensor"), dict):
@@ -116,6 +126,23 @@ def _descriptions(data: dict[str, Any]) -> list[SrmBinaryDescription]:
                         value_fn=lambda d, n=nid, p=name: _port_link(d, n, p),
                     )
                 )
+    for net in _dig(data.get("wifi_networks"), "networks") or []:
+        net_id, net_name = net.get("id"), net.get("name")
+        if net_id is None or not net_name:
+            continue
+        out.append(
+            SrmBinaryDescription(
+                key=f"wifi_mac_filter_{net_id}",
+                translation_key="wifi_mac_filter",
+                placeholders={"network": str(net_name)},
+                entity_category=EntityCategory.DIAGNOSTIC,
+                value_fn=lambda d, n=net_id: bool(_filter_profile_ids(d, n)),
+                attrs_fn=lambda d, n=net_id: {
+                    "profile_ids": _filter_profile_ids(d, n),
+                    "enabled": any(r.get("enable") for r in _network(d, n).get("radios") or []),
+                },
+            )
+        )
     for profile in safe_profiles(data):
         pid, name = profile.get("profile_id"), profile.get("name")
         if pid is None or not name:

@@ -751,6 +751,12 @@ def _sessions(d: dict[str, Any]) -> list[dict[str, Any]]:
     return [i for i in items if isinstance(i, dict)] if isinstance(items, list) else []
 
 
+def _blocked_clients(d: dict[str, Any]) -> list[dict[str, Any]]:
+    """Clients (online or not) that the router blocks."""
+    everyone = (d.get("client_list") or []) + (d.get("offline_list") or [])
+    return [c for c in everyone if c.get("blocked") is True]
+
+
 def _security_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
     """Threat events, new devices, admin sessions, blocked IPs, forwarded ports."""
     out: list[SrmSensorDescription] = []
@@ -804,6 +810,55 @@ def _security_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
                 translation_key="blocked_ips",
                 state_class=SensorStateClass.MEASUREMENT,
                 value_fn=lambda d: _num(_dig(d.get("autoblock"), "total")),
+            )
+        )
+    if isinstance(_dig(data.get("macfilter_profiles"), "profiles"), list):
+        out.append(
+            SrmSensorDescription(
+                key="mac_filter_profiles",
+                translation_key="mac_filter_profiles",
+                state_class=SensorStateClass.MEASUREMENT,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                value_fn=lambda d: len(_dig(d.get("macfilter_profiles"), "profiles") or []),
+                attrs_fn=lambda d: {
+                    "profiles": [
+                        {k: v for k, v in p.items() if k != "password"}
+                        for p in _dig(d.get("macfilter_profiles"), "profiles") or []
+                        if isinstance(p, dict)
+                    ]
+                },
+            )
+        )
+    if isinstance(_dig(data.get("macfilter_devices"), "devices"), list):
+        out.append(
+            SrmSensorDescription(
+                key="mac_filter_devices",
+                translation_key="mac_filter_devices",
+                state_class=SensorStateClass.MEASUREMENT,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                value_fn=lambda d: len(_dig(d.get("macfilter_devices"), "devices") or []),
+                attrs_fn=lambda d: {
+                    "devices": [
+                        {"name": x.get("name"), "mac": str(x.get("mac_addr", "")).lower()}
+                        for x in _dig(d.get("macfilter_devices"), "devices") or []
+                        if isinstance(x, dict)
+                    ]
+                },
+            )
+        )
+    if isinstance(data.get("client_list"), list):
+        out.append(
+            SrmSensorDescription(
+                key="blocked_devices",
+                translation_key="blocked_devices",
+                state_class=SensorStateClass.MEASUREMENT,
+                value_fn=lambda d: len(_blocked_clients(d)),
+                attrs_fn=lambda d: {
+                    "devices": [
+                        {k: c.get(k) for k in ("name", "mac", "ip") if c.get(k)}
+                        for c in _blocked_clients(d)
+                    ]
+                },
             )
         )
     if isinstance(_dig(data.get("port_forward"), "rules"), list):

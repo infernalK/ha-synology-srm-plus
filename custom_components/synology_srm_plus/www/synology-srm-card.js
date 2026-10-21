@@ -21,7 +21,7 @@ const I18N = {
     search: 'Search a client…', all: 'All', sort: 'Sort', name: 'Name', download: 'Download',
     upload: 'Upload', nothing: 'No client', no_data: 'No Synology SRM Plus data found.', offline: 'Offline', ip: 'IP address',
     offline_clients: 'Offline clients', last_seen: 'Last seen', ago: 'ago', router_throughput: 'Router throughput',
-    devices: 'devices', ports: 'Ports', usb: 'USB storage', no_link: 'no link', security: 'Security', threat_prevention: 'Threat prevention', profiles: 'profiles', online: 'online', threats: 'Threat events',
+    devices: 'devices', ports: 'Ports', usb: 'USB storage', no_link: 'no link', security: 'Security', threat_prevention: 'Threat prevention', profiles: 'profiles', online: 'online', mac_filter_list: 'MAC filter list', mac_filter_profiles: 'MAC filter profiles', blocked_devices: 'Blocked devices', mac_filter_networks: 'Wi-Fi with MAC filter', threats: 'Threat events',
     last24: '24 h', last7: '7 days', new_devices: 'New devices', admin_sessions: 'Admin sessions', blocked_ips: 'Blocked IPs',
     forwards: 'Port forwards', protected: 'Protected', unprotected: 'Not protected', exposed: 'Admin reachable from the Internet',
     external_session: 'Admin session from the Internet', safe: 'Safe Access', internet_time: 'Internet time',
@@ -45,7 +45,7 @@ const I18N = {
     search: 'Rechercher un client…', all: 'Tous', sort: 'Tri', name: 'Nom', download: 'Téléchargement',
     upload: 'Envoi', nothing: 'Aucun client', no_data: 'Aucune donnée Synology SRM Plus trouvée.', offline: 'Hors ligne', ip: 'Adresse IP',
     offline_clients: 'Clients hors ligne', last_seen: 'Vu il y a', ago: '', router_throughput: 'Débit du routeur',
-    devices: 'appareils', ports: 'Ports', usb: 'Stockage USB', no_link: 'pas de lien', security: 'Sécurité', threat_prevention: 'Protection contre les menaces', profiles: 'profils', online: 'en ligne', threats: 'Menaces détectées',
+    devices: 'appareils', ports: 'Ports', usb: 'Stockage USB', no_link: 'pas de lien', security: 'Sécurité', threat_prevention: 'Protection contre les menaces', profiles: 'profils', online: 'en ligne', mac_filter_list: 'Liste filtrage MAC', mac_filter_profiles: 'Profils filtrage MAC', blocked_devices: 'Appareils bloqués', mac_filter_networks: 'Wi-Fi avec filtrage MAC', threats: 'Menaces détectées',
     last24: '24 h', last7: '7 jours', new_devices: 'Nouveaux appareils', admin_sessions: "Sessions d'administration", blocked_ips: 'IP bloquées',
     forwards: 'Redirections de ports', protected: 'Protégé', unprotected: 'Non protégé', exposed: "Administration joignable depuis Internet",
     external_session: "Session d'administration depuis Internet", safe: 'Safe Access', internet_time: 'Temps sur internet',
@@ -632,6 +632,11 @@ class SynologySrmThreatCard extends SrmEntityCard {
 
     const tile = (label, st, sub = '') =>
       st ? `<div class="tile" data-entity="${esc(st.entity_id)}"><div class="k">${esc(label)}</div><div class="v">${esc(st.state)}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>` : '';
+    const names = (st) => (st ? (st.attributes.devices || []).map((d) => esc(d.name || d.mac || '?')).join(', ') : '');
+    const filterOn = (found.wifi_mac_filter || []).filter((st) => st.state === 'on');
+    const macNetworks = (found.wifi_mac_filter || []).length
+      ? `<div class="tile" data-entity="${esc(found.wifi_mac_filter[0].entity_id)}"><div class="k">${esc(t.mac_filter_networks)}</div><div class="v">${filterOn.length}</div><div class="s">${filterOn.map((st) => esc(st.attributes.network)).join(', ')}</div></div>`
+      : '';
     const t24 = first('threat_events_24h');
     const t7 = first('threat_events_7d');
     const lv = t7 ? t7.attributes : {};
@@ -644,7 +649,11 @@ class SynologySrmThreatCard extends SrmEntityCard {
       tile(t.new_devices, nd, newNames) +
       tile(t.admin_sessions, first('admin_sessions')) +
       tile(t.blocked_ips, first('blocked_ips')) +
-      tile(t.forwards, first('port_forward_rules'));
+      tile(t.forwards, first('port_forward_rules')) +
+      tile(t.blocked_devices, first('blocked_devices'), names(first('blocked_devices'))) +
+      tile(t.mac_filter_list, first('mac_filter_devices'), names(first('mac_filter_devices'))) +
+      tile(t.mac_filter_profiles, first('mac_filter_profiles')) +
+      macNetworks;
 
     const sessionsSt = first('admin_sessions');
     const sessions = sessionsSt ? (sessionsSt.attributes.sessions || []).slice(0, 8) : [];
