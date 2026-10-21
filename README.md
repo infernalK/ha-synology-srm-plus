@@ -111,4 +111,4 @@ host names, serial number and credentials redacted. Please still skim it before 
 
 ## License
 
-No license has been chosen yet.
+MIT, see [LICENSE](LICENSE).
