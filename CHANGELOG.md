@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.5
+
+- *Blocked IP addresses*: the auto-block settings (enabled, failed attempts, window, expiry) and the blocked addresses are now attributes of the sensor.
+
 ## 0.5.4
 
 - MAC filtering (read-only): number of filter profiles, devices in the filter list, whether each Wi-Fi network uses a filter, and the devices the router blocks. Shown in the threat prevention card.

@@ -810,6 +810,17 @@ def _security_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
                 translation_key="blocked_ips",
                 state_class=SensorStateClass.MEASUREMENT,
                 value_fn=lambda d: _num(_dig(d.get("autoblock"), "total")),
+                attrs_fn=lambda d: {
+                    k: v
+                    for k, v in {
+                        "auto_block_enabled": _dig(d.get("autoblock_settings"), "enable"),
+                        "failed_attempts": _dig(d.get("autoblock_settings"), "attempts"),
+                        "within_minutes": _dig(d.get("autoblock_settings"), "within_mins"),
+                        "expire_days": _dig(d.get("autoblock_settings"), "expire_day"),
+                        "addresses": _dig(d.get("autoblock"), "addresses") or None,
+                    }.items()
+                    if v is not None
+                },
             )
         )
     if isinstance(_dig(data.get("macfilter_profiles"), "profiles"), list):
@@ -1064,4 +1075,4 @@ class SrmSensor(CoordinatorEntity[SrmCoordinator], SensorEntity):
         return attrs or None
 
     # Large payloads: keep them out of the database.
-    _unrecorded_attributes = frozenset({"data", "clients", "sessions", "devices"})
+    _unrecorded_attributes = frozenset({"data", "clients", "sessions", "devices", "addresses"})

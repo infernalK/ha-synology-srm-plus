@@ -174,6 +174,7 @@ ENDPOINTS: dict[str, tuple[str, Callable[[synology_srm.Client], Any], int]] = {
         3,
     ),
     "autoblock": ("SYNO.DSM.AutoBlock", _raw("SYNO.DSM.AutoBlock", "list"), 5),
+    "autoblock_settings": ("SYNO.Core.Security.AutoBlock", _raw("SYNO.Core.Security.AutoBlock"), 10),
     "allow_wan": (
         "SYNO.Core.Security.Firewall.AllowSrmFromWan",
         _raw("SYNO.Core.Security.Firewall.AllowSrmFromWan"),

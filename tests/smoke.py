@@ -78,7 +78,8 @@ DATA = {
     "new_devices": {"new_devices": [{"hostname": "Gadget", "mac": "aa:bb:cc:00:00:99"}]},
     "admin_sessions": {"items": [{"who": "admin", "from": "10.0.0.20", "type": "HTTP/HTTPS", "time": "2026/10/21 13:24:43"},
                                  {"who": "admin", "from": "203.0.113.7", "type": "HTTP/HTTPS", "time": "2026/10/20 09:02:11"}]},
-    "autoblock": {"addresses": [], "total": 0},
+    "autoblock": {"addresses": [{"ip": "203.0.113.9"}], "total": 1},
+    "autoblock_settings": {"attempts": 5, "enable": True, "expire_day": 0, "within_mins": 1},
     "allow_wan": {"enable": True},
     "port_forward": {"rules": []},
     "safe_profiles": {"profiles": [{"profile_id": 2, "name": "Kids", "enable_filter": True,
@@ -158,6 +159,11 @@ def main() -> int:
     assert values_of(descriptions, "mac_filter_devices") == 1 and values_of(descriptions, "mac_filter_profiles") == 0
     assert values_of(descriptions, "blocked_devices") == 1, values_of(descriptions, "blocked_devices")
 
+    blocked = next(d for _, d in descriptions if d.key == "blocked_ips")
+    attrs = blocked.attrs_fn(DATA)
+    assert attrs["failed_attempts"] == 5 and attrs["within_minutes"] == 1 and attrs["auto_block_enabled"] is True, attrs
+    assert attrs["expire_days"] == 0 and attrs["addresses"] == [{"ip": "203.0.113.9"}], attrs
+
     # secrets must not reach the log
     masked = coordinator.redact(
         {"password": "hunter2", "pin": "1234", "mac": "aa:bb:cc:dd:ee:ff", "ip": "84.55.140.122",
@@ -172,7 +178,7 @@ def main() -> int:
     values = {d.key: d.value_fn(DATA) for _, d in descriptions}
     expected = {
         "cpu_usage": 59, "load_1min": 1.25, "router_rx_0": 227831, "threat_events_24h": 4,
-        "threat_events_7d": 5, "admin_sessions": 2, "port_speed_0_lp3": 0, "usb_usage_U2_usbshare": 15.7,
+        "threat_events_7d": 5, "admin_sessions": 2, "blocked_ips": 1, "port_speed_0_lp3": 0, "usb_usage_U2_usbshare": 15.7,
         "clients_offline": 1, "clients_online": 3,
     }
     for key, want in expected.items():
