@@ -9,7 +9,7 @@
 - Safe Access (parental control): per profile internet time, status, "blocked now" and active filters.
 - Wi-Fi channel sensors now carry the channel width, transmit power and mode.
 - Offline clients with their last connection (kept across restarts).
-- New *Security* dashboard card; the router and clients cards show the new data; clients can be sorted by IP and last seen.
+- New *Threat prevention* and *Safe Access* dashboard cards (two separate cards); the router and clients cards show the new data; clients can be sorted by IP and last seen.
 - `explore_api` now masks secrets, MAC addresses and public IPs in the log.
 - Presence tracking: choose which clients get a presence entity; unselected ones are removed (no ghost entities).
 - Brand icon, English and French README, validation workflow (hassfest + HACS), MIT license.

@@ -41,15 +41,15 @@ If you prefer one entity per device, use the **presence tracking option** (*Conf
 
 ## Dashboard cards
 
-Three cards are included and loaded automatically (no resource to add):
+Four cards are included and loaded automatically (no resource to add):
 
 | Router card | | Clients card |
 |---|---|---|
 | ![Router card](docs/images/router-card.png) | ![Router card, details](docs/images/router-card-details.png) | ![Clients card](docs/images/clients-card.png) |
 
-| Security card |
-|---|
-| ![Security card](docs/images/security-card.png) |
+| Threat prevention card | Safe Access card |
+|---|---|
+| ![Threat prevention card](docs/images/threat-card.png) | ![Safe Access card](docs/images/safeaccess-card.png) |
 
 *Rendered with neutral sample data. In Home Assistant the client icons are Material Design icons (the emoji here are stand-ins used by the preview harness) and the colors follow your theme.*
 
@@ -66,7 +66,11 @@ max_height: 500          # optional, px
 ```
 
 ```yaml
-type: custom:synology-srm-security-card   # threats, sessions, exposure, Safe Access
+type: custom:synology-srm-threat-card     # threat prevention: events, new devices, admin sessions, exposure
+```
+
+```yaml
+type: custom:synology-srm-safeaccess-card # Safe Access (parental control): time online, status, schedules per profile
 ```
 
 The cards find the integration's entities on their own; add `device_id: <id>` if you have several routers. In the clients card, click a client to expand all its details, double-click to open its connection sensor. A ready-made dashboard is in [dashboards/synology-srm.yaml](dashboards/synology-srm.yaml). The cards follow your Home Assistant language (English or French).

@@ -17,3 +17,7 @@ views:
             title: Clients
             sort_by: download
             max_height: 700
+      - type: grid
+        cards:
+          - type: custom:synology-srm-threat-card
+          - type: custom:synology-srm-safeaccess-card

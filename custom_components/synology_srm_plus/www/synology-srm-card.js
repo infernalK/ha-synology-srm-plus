@@ -3,6 +3,8 @@
  *
  *   type: custom:synology-srm-router-card     (router health: CPU, memory, traffic, Wi-Fi, links, storage)
  *   type: custom:synology-srm-clients-card    (every client with signal, link rate, traffic and details)
+ *   type: custom:synology-srm-threat-card     (threat prevention: events, new devices, admin sessions, exposure)
+ *   type: custom:synology-srm-safeaccess-card (Safe Access / parental control per profile)
  *
  * Both cards find the integration's entities by themselves. Optional `device_id`
  * restricts them to one router when several are configured.
@@ -19,7 +21,7 @@ const I18N = {
     search: 'Search a client…', all: 'All', sort: 'Sort', name: 'Name', download: 'Download',
     upload: 'Upload', nothing: 'No client', no_data: 'No Synology SRM Plus data found.', offline: 'Offline', ip: 'IP address',
     offline_clients: 'Offline clients', last_seen: 'Last seen', ago: 'ago', router_throughput: 'Router throughput',
-    devices: 'devices', ports: 'Ports', usb: 'USB storage', no_link: 'no link', security: 'Security', threats: 'Threat events',
+    devices: 'devices', ports: 'Ports', usb: 'USB storage', no_link: 'no link', security: 'Security', threat_prevention: 'Threat prevention', profiles: 'profiles', threats: 'Threat events',
     last24: '24 h', last7: '7 days', new_devices: 'New devices', admin_sessions: 'Admin sessions', blocked_ips: 'Blocked IPs',
     forwards: 'Port forwards', protected: 'Protected', unprotected: 'Not protected', exposed: 'Admin reachable from the Internet',
     external_session: 'Admin session from the Internet', safe: 'Safe Access', internet_time: 'Internet time',
@@ -43,7 +45,7 @@ const I18N = {
     search: 'Rechercher un client…', all: 'Tous', sort: 'Tri', name: 'Nom', download: 'Téléchargement',
     upload: 'Envoi', nothing: 'Aucun client', no_data: 'Aucune donnée Synology SRM Plus trouvée.', offline: 'Hors ligne', ip: 'Adresse IP',
     offline_clients: 'Clients hors ligne', last_seen: 'Vu il y a', ago: '', router_throughput: 'Débit du routeur',
-    devices: 'appareils', ports: 'Ports', usb: 'Stockage USB', no_link: 'pas de lien', security: 'Sécurité', threats: 'Menaces détectées',
+    devices: 'appareils', ports: 'Ports', usb: 'Stockage USB', no_link: 'pas de lien', security: 'Sécurité', threat_prevention: 'Protection contre les menaces', profiles: 'profils', threats: 'Menaces détectées',
     last24: '24 h', last7: '7 jours', new_devices: 'Nouveaux appareils', admin_sessions: "Sessions d'administration", blocked_ips: 'IP bloquées',
     forwards: 'Redirections de ports', protected: 'Protégé', unprotected: 'Non protégé', exposed: "Administration joignable depuis Internet",
     external_session: "Session d'administration depuis Internet", safe: 'Safe Access', internet_time: 'Temps sur internet',
@@ -571,9 +573,9 @@ class SynologySrmClientsCard extends SrmBaseCard {
 }
 
 
-/* ------------------------------------------------------------------ security card */
+/* ------------------------------------------------------------------ shared: entity cards */
 
-class SynologySrmSecurityCard extends SrmBaseCard {
+class SrmEntityCard extends SrmBaseCard {
   static getStubConfig() {
     return {};
   }
@@ -585,22 +587,27 @@ class SynologySrmSecurityCard extends SrmBaseCard {
     const sig = Object.values(found).flat().map((s) => s.entity_id + s.last_updated).join('|') + (hass.language || '');
     if (sig === this._sig) return;
     this._sig = sig;
+    if (!Object.keys(found).length) {
+      this.shadowRoot.innerHTML = `<style>${STYLE}</style><ha-card><div class="empty">${esc(strings(hass).no_data)}</div></ha-card>`;
+      return;
+    }
     this._render(found);
+    this.shadowRoot.querySelectorAll('[data-entity]').forEach((el) =>
+      el.addEventListener('click', () => this._moreInfo(el.dataset.entity)));
   }
+}
 
+/* ------------------------------------------------------------------ threat prevention card */
+
+class SynologySrmThreatCard extends SrmEntityCard {
   _render(found) {
     const hass = this._hass;
     const t = strings(hass);
     const first = (key) => (found[key] || [])[0];
-    const all = (key) => found[key] || [];
-    if (!Object.keys(found).length) {
-      this.shadowRoot.innerHTML = `<style>${STYLE}</style><ha-card><div class="empty">${esc(t.no_data)}</div></ha-card>`;
-      return;
-    }
     const prot = first('threat_protection');
     const exposed = first('srm_exposed_wan');
     const ext = first('external_admin_session');
-    const badge = (st, good, label, bad) =>
+    const badge = (st, good, label) =>
       st ? `<span class="badge ${(st.state === 'on') === good ? '' : 'bad'}" data-entity="${esc(st.entity_id)}">${esc(label)}</span>` : '';
     const badges =
       badge(prot, true, prot && prot.state === 'on' ? t.protected : t.unprotected) +
@@ -632,21 +639,43 @@ class SynologySrmSecurityCard extends SrmBaseCard {
       })
       .join('');
 
+    this.shadowRoot.innerHTML = `<style>${STYLE}</style>
+      <ha-card>
+        <div class="head"><ha-icon icon="mdi:shield-check"></ha-icon><div><div class="title">${esc(this._config.title || t.threat_prevention)}</div></div><div class="badges">${badges}</div></div>
+        <div class="grid">${tiles}</div>
+        ${sessionRows ? `<h3>${esc(t.admin_sessions)}</h3>${sessionRows}` : ''}
+      </ha-card>`;
+  }
+}
+
+/* ------------------------------------------------------------------ Safe Access card */
+
+class SynologySrmSafeAccessCard extends SrmEntityCard {
+  _render(found) {
+    const hass = this._hass;
+    const t = strings(hass);
+    const all = (key) => found[key] || [];
     const times = mapBy(all('safe_time'), 'profile');
     const status = mapBy(all('safe_status'), 'profile');
     const blocked = mapBy(all('safe_blocked'), 'profile');
     const profiles = Object.keys(times).sort((a, b) => a.localeCompare(b));
+    const isConcerned = (name) => (status[name] ? status[name].state : times[name].attributes.concerned_status) === 'concerned';
+    const isBlocked = (name) => blocked[name] && blocked[name].state === 'on';
+    const nBlocked = profiles.filter(isBlocked).length;
+    const nConcerned = profiles.filter(isConcerned).length;
+    const badges =
+      (nBlocked ? `<span class="badge bad">${nBlocked} ${esc(t.blocked_now.toLowerCase())}</span>` : '') +
+      (nConcerned ? `<span class="badge" style="background:var(--warning-color,#ffa600)">${nConcerned} ${esc(t.concerned.toLowerCase())}</span>` : '');
+
     const flag = (on, icon, label) => `<span title="${esc(label)}" style="opacity:${on ? 1 : 0.25};margin-right:6px">${icon}</span>`;
-    const safeRows = profiles
+    const rows = profiles
       .map((name) => {
         const tm = times[name];
         const a = tm.attributes;
-        const concerned = (status[name] ? status[name].state : a.concerned_status) === 'concerned';
-        const isBlocked = blocked[name] && blocked[name].state === 'on';
         const minutes = Number(tm.state);
         const h = Number.isFinite(minutes) ? `${Math.floor(minutes / 60)} h ${String(Math.round(minutes % 60)).padStart(2, '0')}` : '';
         const hits = a.inappropriate_websites ? Object.entries(a.inappropriate_websites).map(([k, v]) => `${esc(k)} (${esc(v)})`).join(', ') : '';
-        return `<div class="row" style="grid-template-columns:1fr auto" data-entity="${esc(tm.entity_id)}"><div style="min-width:0"><div class="nm">${esc(name)}${isBlocked ? ` <span class="badge bad">${esc(t.blocked_now)}</span>` : ''}${concerned ? ` <span class="badge" style="background:var(--warning-color,#ffa600)">${esc(t.concerned)}</span>` : ''}</div>
+        return `<div class="row" style="grid-template-columns:1fr auto" data-entity="${esc(tm.entity_id)}"><div style="min-width:0"><div class="nm">${esc(name)}${isBlocked(name) ? ` <span class="badge bad">${esc(t.blocked_now)}</span>` : ''}${isConcerned(name) ? ` <span class="badge" style="background:var(--warning-color,#ffa600)">${esc(t.concerned)}</span>` : ''}</div>
           <div class="meta">${flag(a.web_filter, '🌐', t.filter)}${flag(a.safe_search, '🔎', t.safe_search)}${flag(a.time_quota, '⏱', t.quota)}${flag(a.block_time, '🌙', t.schedule)}${hits ? `· ${esc(t.hits)}: ${hits}` : ''}</div></div>
           <div class="rt"><div>${esc(h)}</div><div class="meta">${esc(t.internet_time)}</div></div></div>`;
       })
@@ -654,31 +683,33 @@ class SynologySrmSecurityCard extends SrmBaseCard {
 
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <ha-card>
-        <div class="head"><ha-icon icon="mdi:shield-check"></ha-icon><div><div class="title">${esc(this._config.title || t.security)}</div></div><div class="badges">${badges}</div></div>
-        <div class="grid">${tiles}</div>
-        ${sessionRows ? `<h3>${esc(t.admin_sessions)}</h3>${sessionRows}` : ''}
-        ${safeRows ? `<h3>${esc(t.safe)}</h3>${safeRows}` : ''}
+        <div class="head"><ha-icon icon="mdi:account-child-circle"></ha-icon><div><div class="title">${esc(this._config.title || t.safe)}</div><div class="sub">${profiles.length} ${esc(t.profiles)}</div></div><div class="badges">${badges}</div></div>
+        ${rows || `<div class="empty">${esc(t.none)}</div>`}
       </ha-card>`;
-    this.shadowRoot.querySelectorAll('[data-entity]').forEach((el) =>
-      el.addEventListener('click', () => this._moreInfo(el.dataset.entity)));
   }
 }
 
-if (!customElements.get('synology-srm-security-card')) customElements.define('synology-srm-security-card', SynologySrmSecurityCard);
+if (!customElements.get('synology-srm-threat-card')) customElements.define('synology-srm-threat-card', SynologySrmThreatCard);
+if (!customElements.get('synology-srm-safeaccess-card')) customElements.define('synology-srm-safeaccess-card', SynologySrmSafeAccessCard);
 if (!customElements.get('synology-srm-router-card')) customElements.define('synology-srm-router-card', SynologySrmRouterCard);
 if (!customElements.get('synology-srm-clients-card')) customElements.define('synology-srm-clients-card', SynologySrmClientsCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push(
   {
-    type: 'synology-srm-security-card',
-    name: 'Synology SRM – Security',
-    description: 'Threat events, new devices, admin sessions, exposure and Safe Access (parental control).',
+    type: 'synology-srm-threat-card',
+    name: 'Synology SRM – Threat prevention',
+    description: 'Threat events, new devices, admin sessions and exposure of the router.',
+  },
+  {
+    type: 'synology-srm-safeaccess-card',
+    name: 'Synology SRM – Safe Access',
+    description: 'Parental control: internet time, status and schedules per profile.',
   },
   {
     type: 'synology-srm-router-card',
     name: 'Synology SRM – Router',
-    description: 'Router health: CPU, memory, traffic, Wi-Fi, links and storage.',
+    description: 'Router health: CPU, memory, traffic, Wi-Fi, ports, USB and storage.',
   },
   {
     type: 'synology-srm-clients-card',

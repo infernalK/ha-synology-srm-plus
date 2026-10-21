@@ -41,15 +41,15 @@ Si vous préférez une entité par appareil, utilisez l'**option de suivi de pr�
 
 ## Cartes de tableau de bord
 
-Trois cartes sont fournies et chargées automatiquement (aucune ressource à ajouter) :
+Quatre cartes sont fournies et chargées automatiquement (aucune ressource à ajouter) :
 
 | Carte routeur | | Carte clients |
 |---|---|---|
 | ![Carte routeur](docs/images/router-card.png) | ![Carte routeur, détails](docs/images/router-card-details.png) | ![Carte clients](docs/images/clients-card.png) |
 
-| Carte sécurité |
-|---|
-| ![Carte sécurité](docs/images/security-card.png) |
+| Carte protection contre les menaces | Carte Safe Access |
+|---|---|
+| ![Carte protection contre les menaces](docs/images/threat-card.png) | ![Carte Safe Access](docs/images/safeaccess-card.png) |
 
 *Rendu avec des données d'exemple neutres, en anglais. Dans Home Assistant, les icônes des clients sont des icônes Material Design (les émojis ici sont des substituts du banc d'essai) et les couleurs suivent votre thème. Les cartes s'affichent en français si Home Assistant est en français.*
 
@@ -66,7 +66,11 @@ max_height: 500          # facultatif, en px
 ```
 
 ```yaml
-type: custom:synology-srm-security-card   # menaces, sessions, exposition, Safe Access
+type: custom:synology-srm-threat-card     # protection contre les menaces : événements, nouveaux appareils, sessions d'administration, exposition
+```
+
+```yaml
+type: custom:synology-srm-safeaccess-card # Safe Access (contrôle parental) : temps sur internet, état, plages horaires par profil
 ```
 
 Les cartes retrouvent seules les entités de l'intégration ; ajoutez `device_id: <id>` si vous avez plusieurs routeurs. Dans la carte des clients, un clic déplie tous les détails d'un client, un double-clic ouvre son capteur de connexion. Un tableau de bord prêt à coller se trouve dans [dashboards/synology-srm.yaml](dashboards/synology-srm.yaml).
