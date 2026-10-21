@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 GROUP_WIRED = "Wired"
+GROUP_OFFLINE = "Offline"
 
 # normalised key -> SRM key (NSM.Device payload)
 _NSM_FIELDS: dict[str, str] = {
@@ -31,6 +33,9 @@ _NSM_FIELDS: dict[str, str] = {
     "beamforming": "is_beamforming_on",
 }
 
+# Offline devices may carry timestamps under names we do not know yet.
+_TIME_KEY = re.compile(r"last|time|date|seen|online", re.I)
+
 
 def client_group(client: dict[str, Any]) -> str:
     """Return the group of a client: its Wi-Fi band, or 'Wired'."""
@@ -41,13 +46,15 @@ def client_group(client: dict[str, Any]) -> str:
 
 def group_label(group: str) -> str:
     """Return the display label of a group."""
-    return group if group == GROUP_WIRED else f"Wi-Fi {group}"
+    if group in (GROUP_WIRED, GROUP_OFFLINE):
+        return group
+    return f"Wi-Fi {group}"
 
 
 def normalize_clients(
     clients: Any, wifi_devices: Any
-) -> list[dict[str, Any]] | None:
-    """Merge NSM.Device and Wifi.Device payloads into one clean list.
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
+    """Merge NSM.Device and Wifi.Device payloads into clean online / offline lists.
 
     Returns None when the router does not offer the client list.
     """
@@ -62,23 +69,40 @@ def normalize_clients(
         if isinstance(dev, dict) and dev.get("mac_address"):
             wifi_by_mac[str(dev["mac_address"]).lower()] = dev
 
-    out: list[dict[str, Any]] = []
+    online: list[dict[str, Any]] = []
+    offline: list[dict[str, Any]] = []
     for raw in clients:
         if not isinstance(raw, dict):
             continue
         mac = str(raw.get("mac") or "").lower()
+        is_online = raw.get("is_online", True) is not False
         item: dict[str, Any] = {
             "name": raw.get("hostname") or mac or "unknown",
             "mac": mac,
         }
         for key, srm_key in _NSM_FIELDS.items():
             item[key] = raw.get(srm_key)
-        wifi = wifi_by_mac.get(mac)
-        if wifi:
-            item["interface"] = wifi.get("interface_name")
-            item["wifi_bytes_rx"] = wifi.get("bytes_rx")
-            item["wifi_bytes_tx"] = wifi.get("bytes_tx")
-        item["group"] = client_group(raw)
-        out.append({k: v for k, v in item.items() if v is not None and v != ""})
-    out.sort(key=lambda c: str(c["name"]).lower())
-    return out
+        if is_online:
+            wifi = wifi_by_mac.get(mac)
+            if wifi:
+                item["interface"] = wifi.get("interface_name")
+                item["wifi_bytes_rx"] = wifi.get("bytes_rx")
+                item["wifi_bytes_tx"] = wifi.get("bytes_tx")
+            item["group"] = client_group(raw)
+        else:
+            item["group"] = GROUP_OFFLINE
+            # Rates and signal are meaningless once a device is gone.
+            for key in ("signal", "link_rate", "download", "upload"):
+                item.pop(key, None)
+            extra = {
+                k: v
+                for k, v in raw.items()
+                if _TIME_KEY.search(k) and k != "is_online" and v not in (None, "", 0)
+            }
+            if extra:
+                item["extra"] = extra
+        cleaned = {k: v for k, v in item.items() if v is not None and v != ""}
+        (online if is_online else offline).append(cleaned)
+    online.sort(key=lambda c: str(c["name"]).lower())
+    offline.sort(key=lambda c: str(c["name"]).lower())
+    return online, offline

@@ -26,7 +26,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import SrmConfigEntry
 from .const import DOMAIN
-from .clients import GROUP_WIRED, group_label
+from .clients import GROUP_OFFLINE, GROUP_WIRED, group_label
 from .coordinator import SrmCoordinator
 
 
@@ -399,6 +399,19 @@ def _client_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
                 state_class=SensorStateClass.MEASUREMENT,
                 value_fn=lambda d, g=group: len(_clients(d, g)),
                 attrs_fn=lambda d, g=group: _group_attrs(d, g),
+            )
+        )
+    if isinstance(data.get("offline_list"), list):
+        out.append(
+            SrmSensorDescription(
+                key="clients_offline",
+                translation_key="clients_offline",
+                value_fn=lambda d: len(d.get("offline_list") or []),
+                attrs_fn=lambda d: {
+                    "integration": DOMAIN,
+                    "group": GROUP_OFFLINE,
+                    "clients": d.get("offline_list") or [],
+                },
             )
         )
     for group in (None, *groups):

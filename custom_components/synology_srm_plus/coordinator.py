@@ -61,7 +61,8 @@ ENDPOINTS: dict[str, tuple[str, Callable[[synology_srm.Client], Any]]] = {
     ),
     "clients": (
         "SYNO.Core.Network.NSM.Device",
-        lambda c: c.core.get_network_nsm_device({"is_online": True}),
+        # No filter: devices that are known but offline are returned too.
+        lambda c: c.core.get_network_nsm_device(),
     ),
     "wifi_radio": ("SYNO.Wifi.Radio.Status", _raw("SYNO.Wifi.Radio.Status")),
     "wifi_devices": ("SYNO.Wifi.Device", _raw("SYNO.Wifi.Device")),
@@ -143,9 +144,8 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 _LOGGER.warning("SRM call %s (%s) crashed: %r", key, api, err)
         if called and failures == called:
             raise UpdateFailed("All SRM calls failed")
-        results["client_list"] = normalize_clients(
-            results.get("clients"), results.get("wifi_devices")
-        )
+        normalized = normalize_clients(results.get("clients"), results.get("wifi_devices"))
+        results["client_list"], results["offline_list"] = normalized or (None, None)
         return results
 
     async def _async_update_data(self) -> dict[str, Any]:

@@ -6,8 +6,9 @@
   ],
   "config_flow": true,
   "dependencies": [
+    "frontend",
     "http",
-    "frontend"
+    "lovelace"
   ],
   "documentation": "https://github.com/infernalK/ha-synology-srm-plus",
   "integration_type": "hub",
@@ -16,5 +17,5 @@
   "requirements": [
     "synology-srm==0.2.3"
   ],
-  "version": "0.4.0"
+  "version": "0.4.1"
 }

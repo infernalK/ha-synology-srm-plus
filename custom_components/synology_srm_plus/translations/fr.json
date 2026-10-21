@@ -130,6 +130,9 @@
       },
       "clients_group": {
         "name": "Clients {group}"
+      },
+      "clients_offline": {
+        "name": "Clients hors ligne"
       }
     }
   },

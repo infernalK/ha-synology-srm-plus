@@ -28,7 +28,10 @@ async def async_setup_entry(
     @callback
     def _add_new_clients() -> None:
         new = []
-        for client in coordinator.data.get("client_list") or []:
+        everyone = (coordinator.data.get("client_list") or []) + (
+            coordinator.data.get("offline_list") or []
+        )
+        for client in everyone:
             mac = client.get("mac")
             if mac and mac not in known:
                 known.add(mac)

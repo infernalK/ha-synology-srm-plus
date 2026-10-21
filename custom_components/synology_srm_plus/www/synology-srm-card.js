@@ -17,7 +17,8 @@ const I18N = {
     wifi: 'Wi-Fi', channel: 'Channel', signal: 'Signal', network: 'Network', external: 'External IP',
     mode: 'Mode', links: 'Links', storage: 'Storage', connection: 'Connection', ok: 'OK',
     search: 'Search a client…', all: 'All', sort: 'Sort', name: 'Name', download: 'Download',
-    upload: 'Upload', nothing: 'No client', no_data: 'No Synology SRM Plus data found.',
+    upload: 'Upload', nothing: 'No client', no_data: 'No Synology SRM Plus data found.', offline: 'Offline', ip: 'IP address',
+    offline_clients: 'Offline clients',
     fields: {
       ip: 'IPv4', ipv6: 'IPv6', mac: 'MAC', group: 'Connection', ssid: 'SSID', wifi_profile: 'Wi-Fi profile',
       signal: 'Signal', link_rate: 'Link rate', max_link_rate: 'Max link rate', rate_quality: 'Rate quality',
@@ -34,7 +35,8 @@ const I18N = {
     wifi: 'Wi-Fi', channel: 'Canal', signal: 'Signal', network: 'Réseau', external: 'IP externe',
     mode: 'Mode', links: 'Liens', storage: 'Stockage', connection: 'Connexion', ok: 'OK',
     search: 'Rechercher un client…', all: 'Tous', sort: 'Tri', name: 'Nom', download: 'Téléchargement',
-    upload: 'Envoi', nothing: 'Aucun client', no_data: 'Aucune donnée Synology SRM Plus trouvée.',
+    upload: 'Envoi', nothing: 'Aucun client', no_data: 'Aucune donnée Synology SRM Plus trouvée.', offline: 'Hors ligne', ip: 'Adresse IP',
+    offline_clients: 'Clients hors ligne',
     fields: {
       ip: 'IPv4', ipv6: 'IPv6', mac: 'MAC', group: 'Connexion', ssid: 'SSID', wifi_profile: 'Profil Wi-Fi',
       signal: 'Signal', link_rate: 'Débit du lien', max_link_rate: 'Débit max du lien', rate_quality: 'Qualité du débit',
@@ -150,6 +152,7 @@ const STYLE = `
   .list { overflow-y: auto; }
   .row { display: grid; grid-template-columns: 36px 1fr auto; gap: 10px; align-items: center; padding: 8px 4px; border-bottom: 1px solid var(--divider-color); cursor: pointer; }
   .row:last-child { border-bottom: none; }
+  .row.off { opacity: .6; }
   .row .ico { display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--secondary-text-color); }
   .row .ico ha-icon { --mdc-icon-size: 24px; }
   .row .nm { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -259,7 +262,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
 
     // wi-fi bands
     const wifiTiles = groupSensors
-      .filter((s) => s.attributes.group && s.attributes.group !== 'Wired')
+      .filter((s) => s.attributes.group && !['Wired', 'Offline'].includes(s.attributes.group))
       .map((s) => {
         const a = s.attributes;
         const lines = [
@@ -311,7 +314,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
         ${trafficTiles ? `<h3>${esc(t.traffic)}</h3><div class="grid">${trafficTiles}</div>` : ''}
         ${wifiTiles ? `<h3>${esc(t.wifi)}</h3><div class="grid">${wifiTiles}</div>` : ''}
         <h3>${esc(t.network)}</h3>
-        <div class="grid">${tile(t.external, ext4)}${tile('IPv6', ext6)}${tile(t.mode, mode)}${links}</div>
+        <div class="grid">${tile(t.external, ext4)}${tile('IPv6', ext6)}${tile(t.mode, mode)}${tile(t.offline_clients, first('clients_offline'))}${links}</div>
         ${storage ? `<h3>${esc(t.storage)}</h3><div class="grid">${storage}</div>` : ''}
       </ha-card>`;
     this.shadowRoot.querySelectorAll('[data-entity]').forEach((el) =>
@@ -376,7 +379,7 @@ class SynologySrmClientsCard extends SrmBaseCard {
           <input class="search" id="search" type="search" placeholder="${esc(t.search)}" value="${esc(this._search)}" />
           <select class="sort" id="sort" title="${esc(t.sort)}">
             <option value="download">↓ ${esc(t.download)}</option><option value="upload">↑ ${esc(t.upload)}</option>
-            <option value="signal">${esc(t.signal)}</option><option value="name">${esc(t.name)}</option>
+            <option value="signal">${esc(t.signal)}</option><option value="ip">${esc(t.ip)}</option><option value="name">${esc(t.name)}</option>
           </select>
         </div>
         <div class="list" id="list"></div>
@@ -423,30 +426,38 @@ class SynologySrmClientsCard extends SrmBaseCard {
     if (Array.isArray(wanted) && wanted.length) states = states.filter((s) => wanted.includes(s.attributes.group));
 
     const clients = [];
+    const offlineClients = [];
     for (const s of states) {
-      for (const c of s.attributes.clients) clients.push({ ...c, _entity: s.entity_id });
+      const isOffline = s.attributes.group === 'Offline';
+      for (const c of s.attributes.clients) (isOffline ? offlineClients : clients).push({ ...c, _entity: s.entity_id });
     }
-    const labelOf = (g) => (g === 'Wired' ? t.wired : `${t.wifi} ${g}`);
-    const groupNames = [...new Set(states.map((s) => s.attributes.group))].sort();
-    if (this._filter !== 'all' && !groupNames.includes(this._filter)) this._filter = 'all';
+    const hasOffline = states.some((s) => s.attributes.group === 'Offline');
+    const labelOf = (g) => (g === 'Wired' ? t.wired : g === 'Offline' ? t.offline : `${t.wifi} ${g}`);
+    const groupNames = [...new Set(states.filter((s) => s.attributes.group !== 'Offline').map((s) => s.attributes.group))].sort();
+    const filters = ['all', ...groupNames, ...(hasOffline ? ['Offline'] : [])];
+    if (!filters.includes(this._filter)) this._filter = 'all';
 
     const sum = (field) => clients.reduce((a, c) => a + (Number(c[field]) || 0), 0);
     root.getElementById('title').textContent = this._config.title || 'Synology SRM';
     root.getElementById('sub').innerHTML =
       `${clients.length} ${clients.length === 1 ? t.client : t.clients} · <span class="down">↓ ${fmtRate(sum('download'))}</span> · <span class="up">↑ ${fmtRate(sum('upload'))}</span>`;
 
-    const count = (g) => clients.filter((c) => g === 'all' || c.group === g).length;
-    root.getElementById('chips').innerHTML = ['all', ...groupNames]
+    const count = (g) => (g === 'Offline' ? offlineClients.length : clients.filter((c) => g === 'all' || c.group === g).length);
+    root.getElementById('chips').innerHTML = filters
       .map((g) => `<button class="chip ${this._filter === g ? 'on' : ''}" data-group="${esc(g)}">${esc(g === 'all' ? t.all : labelOf(g))} ${count(g)}</button>`)
       .join('');
 
     const q = this._search.trim().toLowerCase();
-    let rows = clients.filter((c) => (this._filter === 'all' || c.group === this._filter) &&
-      (!q || [c.name, c.ip, c.mac, c.ssid, c.device_type, c.ipv6].some((v) => String(v ?? '').toLowerCase().includes(q))));
+    const pool = this._filter === 'Offline' ? offlineClients : clients.filter((c) => this._filter === 'all' || c.group === this._filter);
+    let rows = pool.filter((c) => !q || [c.name, c.ip, c.mac, c.ssid, c.device_type, c.ipv6].some((v) => String(v ?? '').toLowerCase().includes(q)));
     const key = this._sort;
-    rows.sort((a, b) => key === 'name'
-      ? String(a.name).localeCompare(String(b.name))
-      : (Number(b[key]) || 0) - (Number(a[key]) || 0) || String(a.name).localeCompare(String(b.name)));
+    const ipKey = (c) => (c.ip ? String(c.ip).split('.').reduce((a, p) => a * 256 + Number(p), 0) : Infinity);
+    const byName = (a, b) => String(a.name).localeCompare(String(b.name));
+    rows.sort((a, b) => {
+      if (key === 'name') return byName(a, b);
+      if (key === 'ip') return ipKey(a) - ipKey(b) || byName(a, b);
+      return (Number(b[key]) || 0) - (Number(a[key]) || 0) || byName(a, b);
+    });
 
     const bars = (signal) => {
       const n = Math.max(0, Math.min(4, Math.ceil((Number(signal) || 0) / 25)));
@@ -456,7 +467,9 @@ class SynologySrmClientsCard extends SrmBaseCard {
 
     const detailOf = (c) => {
       const skip = new Set(['name', '_entity']);
-      return Object.entries(c)
+      const flat = Object.entries(c).flatMap(([k, v]) =>
+        k === 'extra' && v && typeof v === 'object' ? Object.entries(v) : [[k, v]]);
+      return flat
         .filter(([k, v]) => !skip.has(k) && v !== undefined && v !== null && v !== '')
         .map(([k, v]) => {
           let value = v;
@@ -474,13 +487,15 @@ class SynologySrmClientsCard extends SrmBaseCard {
       ? rows
           .map((c) => {
             const icon = ICONS[String(c.device_type || '').toLowerCase()] || ICONS.default;
-            const wifi = c.group !== 'Wired';
-            const meta = [c.ip || c.ipv6, wifi ? labelOf(c.group) : t.wired, c.ssid].filter(Boolean).join(' · ');
+            const off = c.group === 'Offline';
+            const wifi = !off && c.group !== 'Wired';
+            const meta = [c.ip || c.ipv6, labelOf(c.group), c.ssid].filter(Boolean).join(' · ');
             const rate = c.link_rate ? `${c.link_rate} Mbit/s` : '';
-            return `<div class="row" data-mac="${esc(c.mac)}" data-entity="${esc(c._entity)}">
-              <div class="ico"><ha-icon icon="${icon}"></ha-icon>${wifi ? bars(c.signal) : '<ha-icon icon="mdi:ethernet-cable" style="--mdc-icon-size:14px"></ha-icon>'}</div>
+            const status = off ? '<ha-icon icon="mdi:lan-disconnect" style="--mdc-icon-size:14px"></ha-icon>' : wifi ? bars(c.signal) : '<ha-icon icon="mdi:ethernet-cable" style="--mdc-icon-size:14px"></ha-icon>';
+            return `<div class="row ${off ? 'off' : ''}" data-mac="${esc(c.mac)}" data-entity="${esc(c._entity)}">
+              <div class="ico"><ha-icon icon="${icon}"></ha-icon>${status}</div>
               <div style="min-width:0"><div class="nm">${esc(c.name)}</div><div class="meta">${esc(meta)}</div></div>
-              <div class="rt"><div class="down">↓ ${fmtRate(c.download)}</div><div class="up">↑ ${fmtRate(c.upload)}</div><div class="meta">${esc(rate)}</div></div>
+              <div class="rt">${off ? `<div class="meta">${esc(t.offline)}</div>` : `<div class="down">↓ ${fmtRate(c.download)}</div><div class="up">↑ ${fmtRate(c.upload)}</div><div class="meta">${esc(rate)}</div>`}</div>
               ${this._open.has(c.mac) ? `<div class="detail">${detailOf(c)}</div>` : ''}
             </div>`;
           })
@@ -489,8 +504,8 @@ class SynologySrmClientsCard extends SrmBaseCard {
   }
 }
 
-customElements.define('synology-srm-router-card', SynologySrmRouterCard);
-customElements.define('synology-srm-clients-card', SynologySrmClientsCard);
+if (!customElements.get('synology-srm-router-card')) customElements.define('synology-srm-router-card', SynologySrmRouterCard);
+if (!customElements.get('synology-srm-clients-card')) customElements.define('synology-srm-clients-card', SynologySrmClientsCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push(
