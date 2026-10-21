@@ -395,16 +395,16 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if not isinstance(groups, list) or not isinstance(profiles, list):
             return
         names = {p.get("profile_id"): p.get("name") for p in profiles if isinstance(p, dict)}
-        by_mac: dict[str, list[str]] = {}
+        by_mac: dict[str, str] = {}  # a device belongs to a single profile
         for group in groups:
             name = names.get(group.get("config_group_id")) if isinstance(group, dict) else None
             for mac in (group.get("devices") or []) if name else []:
-                by_mac.setdefault(str(mac).lower(), []).append(str(name))
+                by_mac[str(mac).lower()] = str(name)
         for key in ("client_list", "offline_list"):
             for client in results.get(key) or []:
                 profile = by_mac.get(client.get("mac", ""))
                 if profile:
-                    client["safe_profile"] = ", ".join(profile)
+                    client["safe_profile"] = profile
 
     def _track_last_seen(self, data: dict[str, Any]) -> None:
         """Remember when each client was last online; fill it in for offline ones."""
