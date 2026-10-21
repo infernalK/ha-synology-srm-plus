@@ -323,7 +323,7 @@ class SrmSensor(CoordinatorEntity[SrmCoordinator], SensorEntity):
         self.entity_description = description
         entry = coordinator.config_entry
         self._attr_unique_id = f"{entry.entry_id}_{description.key}"
-        self._attr_translation_placeholders = description.placeholders
+        self._attr_translation_placeholders = description.placeholders or {}
         node0 = _find(_dig(coordinator.data.get("system_info"), "nodes"), node_id=0) or {}
         self._attr_device_info = DeviceInfo(
             identifiers={(DOMAIN, entry.entry_id)},

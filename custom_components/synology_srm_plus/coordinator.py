@@ -35,6 +35,19 @@ ENDPOINTS: dict[str, Callable[[synology_srm.Client], Any]] = {
     "system_info": lambda c: c.mesh.get_system_info(),
 }
 
+# Candidate APIs found in the router's API list, probed once to see their payloads.
+EXTRA_PROBES: tuple[tuple[str, str], ...] = (
+    ("SYNO.Core.Network.Router.ConnectionStatus", "get"),
+    ("SYNO.Core.Network.Router.Gateway.List", "get"),
+    ("SYNO.Core.Network.Interface", "get"),
+    ("SYNO.Core.Network.Ethernet", "list"),
+    ("SYNO.Wifi.Radio.Status", "get"),
+    ("SYNO.Wifi.Device", "get"),
+    ("SYNO.Mesh.System.Utilization", "get"),
+    ("SYNO.Mesh.Network.Info", "get"),
+    ("SYNO.Core.Network.Router.Topology", "get"),
+)
+
 # Only used to log which APIs the router offers (to find WAN / Wi-Fi ones).
 _API_NAME_FILTER = re.compile(r"mesh|wan|wifi|wireless|internet|network|system\.info", re.I)
 
@@ -88,10 +101,28 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ", ".join(n for n in names if _API_NAME_FILTER.search(n)),
         )
 
+    def _log_extra_apis(self) -> None:
+        """Probe candidate WAN / Wi-Fi APIs once and log their raw payloads."""
+        for api, method in EXTRA_PROBES:
+            try:
+                result = self.client.http.call(
+                    endpoint="entry.cgi", api=api, method=method, version=1
+                )
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.info("SRM probe %s.%s failed: %r", api, method, err)
+            else:
+                _LOGGER.info(
+                    "SRM probe %s.%s raw: %s",
+                    api,
+                    method,
+                    json.dumps(result, default=str)[:4000],
+                )
+
     def _fetch(self) -> dict[str, Any]:
         """Call every endpoint, isolating failures (blocking)."""
         if not self._apis_logged:
             self._log_available_apis()
+            self._log_extra_apis()
         results: dict[str, Any] = {}
         failures = 0
         for key, call in ENDPOINTS.items():
