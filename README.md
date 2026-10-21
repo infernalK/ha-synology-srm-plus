@@ -20,7 +20,7 @@ It works alongside the built-in integration (different domain) and is configured
 | Router | uptime, firmware, model (serial number in the device page) |
 | Interfaces | per-interface rates (`br0`, `eth2`…), disabled by default, see *Units and caveats* |
 | Diagnostic | number of live traffic entries (needs traffic statistics enabled on the router) |
-| Optional | one device tracker per client (*Configure* on the integration → *Create a device tracker for every client*) |
+| Optional | presence entities (device trackers) for the clients you choose, or for all of them: *Configure* on the integration → *Presence tracking* |
 
 ### Client details
 
@@ -29,14 +29,23 @@ for every device, its name, MAC, IPv4 / IPv6, Wi-Fi band, SSID and profile, sign
 upload rates, device type, router node, and the QoS / guest / blocked / parental-control flags.
 These attributes are kept out of the recorder (no database bloat).
 
-If you prefer one entity per device, enable the **device tracker option**: it creates a presence entity per
-client (same idea as the built-in integration, so keep only one of the two if you do not want duplicates).
+If you prefer one entity per device, use the **presence tracking option** (*Configure* on the integration): pick
+the clients that get a presence entity, or track every client. It is the same idea as the built-in integration,
+so keep only one of the two if you do not want duplicates.
 
 Polling interval: 60 seconds. Everything is read locally from the SRM web API
 (`https://<router>:8001`), using the [synology-srm](https://github.com/aerialls/synology-srm) library.
 
 SRM models and firmwares differ: the integration reads the list of APIs your router offers and
 **only creates the sensors whose API exists**. Missing ones are skipped without errors.
+
+## Exploring your router
+
+The router exposes hundreds of API endpoints and models differ. To help map what yours offers, call the service
+`synology_srm_plus.explore_api` (*Developer tools → Actions*, optional `filter` such as `Wifi`). It runs in the
+background, calls only read-only `get` / `list` methods, skips anything that looks like it could have a side
+effect, and writes what answers to the Home Assistant log (INFO level for `custom_components.synology_srm_plus`).
+It takes a few minutes. Please share the relevant lines in an issue if you want a model supported.
 
 ## Dashboard cards
 

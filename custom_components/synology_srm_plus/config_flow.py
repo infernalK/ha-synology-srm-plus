@@ -23,9 +23,17 @@ from homeassistant.const import (
     CONF_VERIFY_SSL,
 )
 from homeassistant.core import callback
+from homeassistant.helpers.selector import (
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
 from .const import (
+    CONF_TRACK_ALL,
     CONF_TRACK_CLIENTS,
+    CONF_TRACKED_CLIENTS,
     DEFAULT_PORT,
     DEFAULT_SSL,
     DEFAULT_USERNAME,
@@ -38,7 +46,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class SrmOptionsFlow(OptionsFlowWithReload):
-    """Handle the options."""
+    """Handle the options: which clients get a presence entity."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -46,12 +54,45 @@ class SrmOptionsFlow(OptionsFlowWithReload):
         """Manage the options."""
         if user_input is not None:
             return self.async_create_entry(data=user_input)
+
+        options = self.config_entry.options
+        coordinator = getattr(self.config_entry, "runtime_data", None)
+        data = coordinator.data if coordinator else {}
+        clients = (data.get("client_list") or []) + (data.get("offline_list") or [])
+        choices = [
+            SelectOptionDict(
+                value=c["mac"], label=f"{c['name']} ({c.get('ip') or c['mac']})"
+            )
+            for c in sorted(clients, key=lambda c: str(c["name"]).lower())
+            if c.get("mac")
+        ]
+        known = {c["value"] for c in choices}
+        choices += [
+            SelectOptionDict(value=mac, label=mac)
+            for mac in options.get(CONF_TRACKED_CLIENTS, [])
+            if mac not in known
+        ]
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_TRACK_ALL, default=False): bool,
+                vol.Optional(CONF_TRACKED_CLIENTS, default=[]): SelectSelector(
+                    SelectSelectorConfig(
+                        options=choices,
+                        multiple=True,
+                        mode=SelectSelectorMode.DROPDOWN,
+                    )
+                ),
+            }
+        )
+        suggested = {
+            CONF_TRACK_ALL: options.get(
+                CONF_TRACK_ALL, options.get(CONF_TRACK_CLIENTS, False)
+            ),
+            CONF_TRACKED_CLIENTS: options.get(CONF_TRACKED_CLIENTS, []),
+        }
         return self.async_show_form(
             step_id="init",
-            data_schema=self.add_suggested_values_to_schema(
-                vol.Schema({vol.Required(CONF_TRACK_CLIENTS, default=False): bool}),
-                self.config_entry.options,
-            ),
+            data_schema=self.add_suggested_values_to_schema(schema, suggested),
         )
 
 

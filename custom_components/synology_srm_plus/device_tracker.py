@@ -10,7 +10,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import SrmConfigEntry
-from .const import CONF_TRACK_CLIENTS, DOMAIN
+from .const import CONF_TRACK_ALL, CONF_TRACK_CLIENTS, CONF_TRACKED_CLIENTS, DOMAIN
 from .coordinator import SrmCoordinator
 
 
@@ -20,7 +20,11 @@ async def async_setup_entry(
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
     """Create one tracker per client, when enabled in the options."""
-    if not entry.options.get(CONF_TRACK_CLIENTS):
+    track_all = entry.options.get(
+        CONF_TRACK_ALL, entry.options.get(CONF_TRACK_CLIENTS, False)
+    )
+    selected = set(entry.options.get(CONF_TRACKED_CLIENTS) or [])
+    if not track_all and not selected:
         return
     coordinator = entry.runtime_data
     known: set[str] = set()
@@ -33,7 +37,7 @@ async def async_setup_entry(
         )
         for client in everyone:
             mac = client.get("mac")
-            if mac and mac not in known:
+            if mac and mac not in known and (track_all or mac in selected):
                 known.add(mac)
                 new.append(SrmClientTracker(coordinator, mac, client["name"]))
         if new:

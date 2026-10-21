@@ -139,12 +139,26 @@
   "options": {
     "step": {
       "init": {
-        "title": "Options",
+        "title": "Suivi de présence",
         "data": {
-          "track_clients": "Créer un suivi de présence pour chaque client"
+          "track_all": "Suivre tous les clients",
+          "tracked_clients": "Suivre uniquement ces clients"
         },
         "data_description": {
-          "track_clients": "Ajoute une entité de présence par appareil connecté au routeur (comme l'intégration native). La liste des clients reste toujours disponible dans les attributs des capteurs de connexion."
+          "track_all": "Crée une entité de présence pour chaque appareil connu du routeur, y compris les nouveaux.",
+          "tracked_clients": "Choisissez les appareils qui auront une entité de présence (comme l'intégration native). Ignoré si tous les clients sont suivis. La liste complète des clients reste disponible dans les attributs des capteurs de connexion."
+        }
+      }
+    }
+  },
+  "services": {
+    "explore_api": {
+      "name": "Explorer les API du routeur",
+      "description": "Appelle les méthodes en lecture seule (get/list) des API du routeur et écrit celles qui répondent dans le journal de Home Assistant (INFO, custom_components.synology_srm_plus). Prend quelques minutes ; n'appelle aucune méthode qui écrit.",
+      "fields": {
+        "filter": {
+          "name": "Filtre",
+          "description": "N'explorer que les API dont le nom contient ce texte (par exemple Wifi ou Firewall)."
         }
       }
     }

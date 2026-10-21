@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import logging
+import re
+import time
 from typing import Any
 
 import synology_srm
@@ -69,6 +71,19 @@ ENDPOINTS: dict[str, tuple[str, Callable[[synology_srm.Client], Any]]] = {
 }
 
 
+# API names the explore service never calls (side effects, files, secrets, heavy).
+_EXPLORE_SKIP = re.compile(
+    r"restart|reboot|shutdown|reset|upgrade|install|setup|scan|download|export|delete|"
+    r"remove|blink|factory|format|backup|restore|login|logout|auth|encryption|purchase|"
+    r"mydscenter|token|credential|otp|supportform|datacollect|upload|stream|filestation|"
+    r"foldersharing|audioplayer|personmail|socialaccount|crypto|terminal|password|ldap|"
+    r"directory|ntp|region|theme|desktop|appportal|apppriv|entry\.request|polling|"
+    r"migration|snapshot|certificate\.(csr|crt|letsencrypt)|syslogclient\.(ca|filetransfer)|"
+    r"core\.user|core\.group|core\.share|core\.file|core\.acl|core\.cms|"
+    r"core\.package|dsm\.package|synology\.package|\.thumb",
+    re.I,
+)
+
 # Probed once at startup (discovery): lease data might hold a last-seen date.
 DHCP_PROBES: tuple[tuple[str, str], ...] = (
     ("SYNO.Core.Network.DHCPServer.ClientList", "get"),
@@ -108,6 +123,7 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.client = build_client(entry.data)
         # None until the API list has been read; then the set of API names.
         self._available_apis: set[str] | None = None
+        self._api_info: dict[str, Any] | None = None
         self._apis_loaded = False
 
     @property
@@ -124,8 +140,61 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.warning("SRM query_info failed, assuming all APIs exist: %r", err)
             return
         if isinstance(apis, dict):
+            self._api_info = apis
             self._available_apis = set(apis)
             _LOGGER.debug("SRM exposes %d APIs", len(apis))
+
+    def explore(self, name_filter: str | None = None) -> None:
+        """Call get / list on every safe API and log what answers (blocking).
+
+        Discovery tool: it never calls a method that writes, and skips APIs whose
+        name suggests a side effect (restart, upgrade, install, scan, export...).
+        """
+        if not self._apis_loaded:
+            self._load_available_apis()
+        names = sorted(self._available_apis or [])
+        wanted = [
+            n
+            for n in names
+            if not _EXPLORE_SKIP.search(n)
+            and (not name_filter or name_filter.lower() in n.lower())
+        ]
+        _LOGGER.info(
+            "SRM explore: %d of %d APIs selected (filter=%r)",
+            len(wanted),
+            len(names),
+            name_filter,
+        )
+        ok = 0
+        for api in wanted:
+            info = self._api_info.get(api) if isinstance(self._api_info, dict) else None
+            info = info if isinstance(info, dict) else {}
+            endpoint = str(info.get("path") or "entry.cgi")
+            versions = sorted({1, int(info.get("maxVersion") or 1)})
+            done = False
+            for method in ("get", "list"):
+                for version in versions:
+                    try:
+                        result = self.client.http.call(
+                            endpoint=endpoint, api=api, method=method, version=version
+                        )
+                    except Exception:  # noqa: BLE001 - unknown method / params / version
+                        continue
+                    finally:
+                        time.sleep(0.15)
+                    ok += 1
+                    done = True
+                    _LOGGER.info(
+                        "SRM explore OK %s.%s v%s: %s",
+                        api,
+                        method,
+                        version,
+                        json.dumps(result, default=str)[:900],
+                    )
+                    break
+                if done:
+                    break
+        _LOGGER.info("SRM explore finished: %d answered out of %d APIs", ok, len(wanted))
 
     def _probe_dhcp(self) -> None:
         """Log (once) what the DHCP APIs return: could give a last-seen date."""

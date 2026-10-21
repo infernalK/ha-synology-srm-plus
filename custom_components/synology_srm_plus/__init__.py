@@ -5,11 +5,13 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
+import voluptuous as vol
+
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
@@ -21,6 +23,9 @@ _LOGGER = logging.getLogger(__name__)
 PLATFORMS = [Platform.SENSOR, Platform.DEVICE_TRACKER]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
+
+SERVICE_EXPLORE_API = "explore_api"
+EXPLORE_SCHEMA = vol.Schema({vol.Optional("filter"): cv.string})
 
 type SrmConfigEntry = ConfigEntry[SrmCoordinator]
 
@@ -67,6 +72,29 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     url = f"{CARD_URL}?v={VERSION}"
     if not await _async_register_card_resource(hass, url):
         add_extra_js_url(hass, url)
+
+    running: set[str] = set()
+
+    async def _async_explore(call: ServiceCall) -> None:
+        """Run the read-only API exploration in the background (results in the log)."""
+        for entry in hass.config_entries.async_loaded_entries(DOMAIN):
+            if entry.entry_id in running:
+                continue
+            running.add(entry.entry_id)
+
+            async def _run(entry=entry) -> None:
+                try:
+                    await hass.async_add_executor_job(
+                        entry.runtime_data.explore, call.data.get("filter")
+                    )
+                finally:
+                    running.discard(entry.entry_id)
+
+            hass.async_create_background_task(_run(), f"{DOMAIN}_explore")
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_EXPLORE_API, _async_explore, schema=EXPLORE_SCHEMA
+    )
     return True
 
 

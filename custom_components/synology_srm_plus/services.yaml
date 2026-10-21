@@ -1,0 +1,7 @@
+explore_api:
+  fields:
+    filter:
+      required: false
+      example: Wifi
+      selector:
+        text:

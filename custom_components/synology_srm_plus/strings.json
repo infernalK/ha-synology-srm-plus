@@ -139,12 +139,26 @@
   "options": {
     "step": {
       "init": {
-        "title": "Options",
+        "title": "Presence tracking",
         "data": {
-          "track_clients": "Create a device tracker for every client"
+          "track_all": "Track every client",
+          "tracked_clients": "Track only these clients"
         },
         "data_description": {
-          "track_clients": "Adds one presence entity per device connected to the router (like the built-in integration). The client list is always available as attributes of the connection sensors."
+          "track_all": "Creates a presence entity for every device the router knows, including new ones.",
+          "tracked_clients": "Pick the devices that get a presence entity (like the built-in integration). Ignored when every client is tracked. The full client list stays available as attributes of the connection sensors."
+        }
+      }
+    }
+  },
+  "services": {
+    "explore_api": {
+      "name": "Explore router APIs",
+      "description": "Calls the read-only get/list methods of the router APIs and writes what answers to the Home Assistant log (INFO, custom_components.synology_srm_plus). Takes a few minutes; never calls methods that write.",
+      "fields": {
+        "filter": {
+          "name": "Filter",
+          "description": "Only explore APIs whose name contains this text (for example Wifi or Firewall)."
         }
       }
     }
