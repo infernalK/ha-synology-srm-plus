@@ -26,6 +26,12 @@ TO_REDACT = {
     "ssid",
     "ssids",
     "ddns_hostnames",
+    "clientname",
+    "from",
+    "who",
+    "profile",
+    "pin",
+    "password",
     "sn",
     "serial_number",
 }

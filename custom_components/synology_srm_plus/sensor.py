@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.components.sensor import (
@@ -360,7 +361,19 @@ def _wifi_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
                     placeholders={"band": band},
                     entity_category=EntityCategory.DIAGNOSTIC,
                     value_fn=lambda d, b=band: _num(_radio(d, b).get("channel")),
-                    attrs_fn=lambda d, b=band: {"bssid": _radio(d, b).get("bssid")},
+                    attrs_fn=lambda d, b=band: {
+                        "bssid": _radio(d, b).get("bssid"),
+                        **{
+                            k: v
+                            for k, v in (
+                                _find(
+                                    _dig(d.get("radio_setting"), "radio_list"), radio_type=b
+                                )
+                                or {}
+                            ).items()
+                            if k in ("channel_width", "transmit_power", "wireless_mode")
+                        },
+                    },
                 )
             )
         out.append(
@@ -513,10 +526,384 @@ def _network_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
     return out
 
 
+def _nodes(d: dict[str, Any], key: str) -> list[dict[str, Any]]:
+    nodes = _dig(d.get(key), "nodes")
+    return [n for n in nodes if isinstance(n, dict)] if isinstance(nodes, list) else []
+
+
+def _node(d: dict[str, Any], key: str, node_id: Any) -> dict[str, Any]:
+    return _find(_nodes(d, key), node_id=node_id) or {}
+
+
+def _rate_kwargs() -> dict[str, Any]:
+    return {
+        "device_class": SensorDeviceClass.DATA_RATE,
+        "native_unit_of_measurement": UnitOfDataRate.BYTES_PER_SECOND,
+        "suggested_unit_of_measurement": UnitOfDataRate.MEGABITS_PER_SECOND,
+        "suggested_display_precision": 1,
+        "state_class": SensorStateClass.MEASUREMENT,
+    }
+
+
+def port_label(port: str) -> str:
+    """Return a readable name for an Ethernet port id (wp1 -> WAN, lp2 -> LAN 2)."""
+    if port.startswith("wp"):
+        return "WAN"
+    digits = "".join(ch for ch in port if ch.isdigit())
+    return f"LAN {digits}" if port.startswith("lp") and digits else port
+
+
+def _radio_net(d: dict[str, Any], node_id: Any, band: str) -> dict[str, Any]:
+    return _find(_node(d, "mesh_network", node_id).get("wifi_radios"), band=band) or {}
+
+
+def _router_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
+    """Router throughput (sees offloaded traffic), devices, status, per-band rates."""
+    out: list[SrmSensorDescription] = []
+    for node in _nodes(data, "mesh_nodes"):
+        nid = node.get("node_id")
+        ph = {"node": str(nid)}
+        for field, tkey in (("current_rate_rx", "router_rx"), ("current_rate_tx", "router_tx")):
+            out.append(
+                SrmSensorDescription(
+                    key=f"{tkey}_{nid}",
+                    translation_key=tkey,
+                    placeholders=ph,
+                    value_fn=lambda d, n=nid, f=field: _num(_node(d, "mesh_nodes", n).get(f)),
+                    **_rate_kwargs(),
+                )
+            )
+        out.append(
+            SrmSensorDescription(
+                key=f"connected_devices_{nid}",
+                translation_key="connected_devices",
+                placeholders=ph,
+                state_class=SensorStateClass.MEASUREMENT,
+                value_fn=lambda d, n=nid: _num(_node(d, "mesh_nodes", n).get("connected_devices")),
+            )
+        )
+        out.append(
+            SrmSensorDescription(
+                key=f"node_status_{nid}",
+                translation_key="node_status",
+                placeholders=ph,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                value_fn=lambda d, n=nid: _node(d, "mesh_nodes", n).get("node_status"),
+                attrs_fn=lambda d, n=nid: {
+                    k: v
+                    for k, v in _node(d, "mesh_nodes", n).items()
+                    if k in ("name", "network_status", "node_status_msg", "led_mode", "is_wireless", "parent_node_id")
+                },
+            )
+        )
+    for node in _nodes(data, "mesh_network"):
+        nid = node.get("node_id")
+        for radio in node.get("wifi_radios") or []:
+            band = radio.get("band")
+            if not band:
+                continue
+            ph = {"node": str(nid), "band": band}
+            for field, tkey in (("current_rate_rx", "band_rx"), ("current_rate_tx", "band_tx")):
+                out.append(
+                    SrmSensorDescription(
+                        key=f"{tkey}_{nid}_{band}",
+                        translation_key=tkey,
+                        placeholders=ph,
+                        value_fn=lambda d, n=nid, b=band, f=field: _num(_radio_net(d, n, b).get(f)),
+                        **_rate_kwargs(),
+                    )
+                )
+    if _dig(data.get("mesh_status"), "overall_status") is not None:
+        out.append(
+            SrmSensorDescription(
+                key="router_status",
+                translation_key="router_status",
+                value_fn=lambda d: _dig(d.get("mesh_status"), "overall_status"),
+                attrs_fn=lambda d: {"message": _dig(d.get("mesh_status"), "overall_status_msg")},
+            )
+        )
+    # Ethernet ports
+    for node in _nodes(data, "eth_ports"):
+        nid = node.get("node_id")
+        for port in node.get("eth_port_info") or []:
+            name = port.get("port")
+            if not name:
+                continue
+            out.append(
+                SrmSensorDescription(
+                    key=f"port_speed_{nid}_{name}",
+                    translation_key="port_speed",
+                    placeholders={"node": str(nid), "port": port_label(name)},
+                    device_class=SensorDeviceClass.DATA_RATE,
+                    native_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    value_fn=lambda d, n=nid, p=name: _port_speed(d, n, p),
+                    attrs_fn=lambda d, n=nid, p=name: {
+                        "port_id": p,
+                        "link": bool((_port(d, n, p) or {}).get("has_link")),
+                    },
+                )
+            )
+    return out
+
+
+def _port(d: dict[str, Any], node_id: Any, port: str) -> dict[str, Any] | None:
+    return _find(_node(d, "eth_ports", node_id).get("eth_port_info"), port=port)
+
+
+def _port_speed(d: dict[str, Any], node_id: Any, port: str) -> float | int | None:
+    info = _port(d, node_id, port)
+    if info is None:
+        return None
+    return _num(info.get("link_speed")) if info.get("has_link") else 0
+
+
+def _volumes(d: dict[str, Any]) -> list[dict[str, Any]]:
+    vols = _dig(d.get("usb_volumes"), "volumes")
+    return [v for v in vols if isinstance(v, dict)] if isinstance(vols, list) else []
+
+
+def _volume(d: dict[str, Any], vid: str) -> dict[str, Any]:
+    return _find(_volumes(d), id=vid) or {}
+
+
+def _usb_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
+    """Space used on the USB storage. SRM reports sizes in MiB (a 32 GB key shows ~29000)."""
+    out: list[SrmSensorDescription] = []
+    for vol in _volumes(data):
+        vid = vol.get("id")
+        if not vid:
+            continue
+        slug = "".join(ch if ch.isalnum() else "_" for ch in vid)
+        ph = {"volume": vid}
+
+        def _usage(d: dict[str, Any], v: str = vid) -> float | None:
+            volume = _volume(d, v)
+            total, used = volume.get("total"), volume.get("used")
+            if not isinstance(total, (int, float)) or not total or not isinstance(used, (int, float)):
+                return None
+            return round(used / total * 100, 1)
+
+        out.append(
+            SrmSensorDescription(
+                key=f"usb_usage_{slug}",
+                translation_key="usb_usage",
+                placeholders=ph,
+                native_unit_of_measurement=PERCENTAGE,
+                state_class=SensorStateClass.MEASUREMENT,
+                value_fn=_usage,
+                attrs_fn=lambda d, v=vid: {"status": _volume(d, v).get("status")},
+            )
+        )
+        for field, tkey in (("used", "usb_used"), ("total", "usb_total")):
+            out.append(
+                SrmSensorDescription(
+                    key=f"{tkey}_{slug}",
+                    translation_key=tkey,
+                    placeholders=ph,
+                    device_class=SensorDeviceClass.DATA_SIZE,
+                    native_unit_of_measurement=UnitOfInformation.MEBIBYTES,
+                    suggested_unit_of_measurement=UnitOfInformation.GIBIBYTES,
+                    suggested_display_precision=1,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    value_fn=lambda d, v=vid, f=field: _num(_volume(d, v).get(f)),
+                )
+            )
+    return out
+
+
+def _parse_time(value: Any) -> datetime | None:
+    try:
+        return datetime.strptime(str(value), "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        return None
+
+
+def _threat_events(d: dict[str, Any], hours: int | None) -> int | None:
+    trends = _dig(d.get("tps_trends"), "trends")
+    if not isinstance(trends, list):
+        return None
+    end = _parse_time(_dig(d.get("tps_trends"), "end"))
+    total = 0
+    for bucket in trends:
+        if not isinstance(bucket, dict):
+            continue
+        if hours is not None:
+            bucket_end = _parse_time(bucket.get("end"))
+            if end is None or bucket_end is None or bucket_end <= end - timedelta(hours=hours):
+                continue
+        total += int(bucket.get("total") or 0)
+    return total
+
+
+def _threat_levels(d: dict[str, Any]) -> dict[str, Any]:
+    trends = _dig(d.get("tps_trends"), "trends")
+    if not isinstance(trends, list):
+        return {}
+    levels = {k: sum(int(b.get(k) or 0) for b in trends if isinstance(b, dict)) for k in ("high", "medium", "low")}
+    return {**levels, "since": _dig(d.get("tps_trends"), "begin"), "until": _dig(d.get("tps_trends"), "end")}
+
+
+def _sessions(d: dict[str, Any]) -> list[dict[str, Any]]:
+    items = _dig(d.get("admin_sessions"), "items")
+    return [i for i in items if isinstance(i, dict)] if isinstance(items, list) else []
+
+
+def _security_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
+    """Threat events, new devices, admin sessions, blocked IPs, forwarded ports."""
+    out: list[SrmSensorDescription] = []
+    if isinstance(_dig(data.get("tps_trends"), "trends"), list):
+        out.append(
+            SrmSensorDescription(
+                key="threat_events_24h",
+                translation_key="threat_events_24h",
+                state_class=SensorStateClass.MEASUREMENT,
+                value_fn=lambda d: _threat_events(d, 24),
+            )
+        )
+        out.append(
+            SrmSensorDescription(
+                key="threat_events_7d",
+                translation_key="threat_events_7d",
+                state_class=SensorStateClass.MEASUREMENT,
+                value_fn=lambda d: _threat_events(d, None),
+                attrs_fn=_threat_levels,
+            )
+        )
+    if isinstance(_dig(data.get("new_devices"), "new_devices"), list):
+        out.append(
+            SrmSensorDescription(
+                key="new_devices",
+                translation_key="new_devices",
+                state_class=SensorStateClass.MEASUREMENT,
+                value_fn=lambda d: len(_dig(d.get("new_devices"), "new_devices") or []),
+                attrs_fn=lambda d: {"devices": _dig(d.get("new_devices"), "new_devices") or []},
+            )
+        )
+    if isinstance(_dig(data.get("admin_sessions"), "items"), list):
+        out.append(
+            SrmSensorDescription(
+                key="admin_sessions",
+                translation_key="admin_sessions",
+                state_class=SensorStateClass.MEASUREMENT,
+                value_fn=lambda d: len(_sessions(d)),
+                attrs_fn=lambda d: {
+                    "sessions": [
+                        {k: s.get(k) for k in ("who", "from", "type", "time", "descr")}
+                        for s in _sessions(d)
+                    ]
+                },
+            )
+        )
+    if _num(_dig(data.get("autoblock"), "total")) is not None:
+        out.append(
+            SrmSensorDescription(
+                key="blocked_ips",
+                translation_key="blocked_ips",
+                state_class=SensorStateClass.MEASUREMENT,
+                value_fn=lambda d: _num(_dig(d.get("autoblock"), "total")),
+            )
+        )
+    if isinstance(_dig(data.get("port_forward"), "rules"), list):
+        out.append(
+            SrmSensorDescription(
+                key="port_forward_rules",
+                translation_key="port_forward_rules",
+                state_class=SensorStateClass.MEASUREMENT,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                value_fn=lambda d: len(_dig(d.get("port_forward"), "rules") or []),
+            )
+        )
+    return out
+
+
+def safe_profiles(d: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return the Safe Access (parental control) profiles."""
+    profiles = _dig(d.get("safe_profiles"), "profiles")
+    return [p for p in profiles if isinstance(p, dict)] if isinstance(profiles, list) else []
+
+
+def safe_stat(d: dict[str, Any], pid: Any) -> dict[str, Any]:
+    """Return the Safe Access statistics of one profile."""
+    return _find(_dig(d.get("safe_stats"), "config_groups"), id=pid) or {}
+
+
+def safe_schedule(d: dict[str, Any], pid: Any) -> dict[str, Any]:
+    """Return the Safe Access schedules (block time, quota) of one profile."""
+    found = _find(_dig(d.get("safe_schedule"), "profiles"), profile_id=pid) or {}
+    return found.get("schedules") or {}
+
+
+def _safe_attrs(d: dict[str, Any], pid: Any) -> dict[str, Any]:
+    profile = _find(safe_profiles(d), profile_id=pid) or {}
+    stat = safe_stat(d, pid)
+    hits = stat.get("inappropriate_website_hit")
+    quotas = safe_schedule(d, pid).get("timequotas")
+    return {
+        "profile": profile.get("name"),
+        "concerned_status": stat.get("concerned_status"),
+        "web_filter": profile.get("enable_filter"),
+        "safe_search": profile.get("enable_safe_search"),
+        "time_quota": profile.get("enable_timequota"),
+        "block_time": profile.get("enable_blocktime"),
+        "quota_minutes_by_weekday": (
+            {q["weekday"]: q["quota"] for q in quotas if isinstance(q, dict) and "weekday" in q}
+            if isinstance(quotas, list) and quotas
+            else None
+        ),
+        "inappropriate_websites": (
+            {site: v.get("total") for site, v in hits.items() if isinstance(v, dict)}
+            if isinstance(hits, dict) and hits
+            else None
+        ),
+    }
+
+
+def _safe_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
+    """Safe Access (parental control): internet time and status per profile."""
+    out: list[SrmSensorDescription] = []
+    for profile in safe_profiles(data):
+        pid = profile.get("profile_id")
+        name = profile.get("name")
+        if pid is None or not name:
+            continue
+        ph = {"profile": str(name)}
+        out.append(
+            SrmSensorDescription(
+                key=f"safe_time_{pid}",
+                translation_key="safe_time",
+                placeholders=ph,
+                device_class=SensorDeviceClass.DURATION,
+                native_unit_of_measurement=UnitOfTime.MINUTES,
+                suggested_unit_of_measurement=UnitOfTime.HOURS,
+                suggested_display_precision=1,
+                state_class=SensorStateClass.MEASUREMENT,
+                value_fn=lambda d, p=pid: _num(safe_stat(d, p).get("time_spent_on_internet")),
+                attrs_fn=lambda d, p=pid: {k: v for k, v in _safe_attrs(d, p).items() if v is not None},
+            )
+        )
+        out.append(
+            SrmSensorDescription(
+                key=f"safe_status_{pid}",
+                translation_key="safe_status",
+                placeholders=ph,
+                entity_category=EntityCategory.DIAGNOSTIC,
+                value_fn=lambda d, p=pid: safe_stat(d, p).get("concerned_status"),
+            )
+        )
+    return out
+
+
 def _dynamic_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
     """Build the per-node / per-interface / per-disk sensors from the first data."""
     out: list[SrmSensorDescription] = [
         *_client_descriptions(data),
+        *_router_descriptions(data),
+        *_usb_descriptions(data),
+        *_security_descriptions(data),
+        *_safe_descriptions(data),
         *_wifi_descriptions(data),
         *_network_descriptions(data),
     ]
@@ -594,4 +981,4 @@ class SrmSensor(CoordinatorEntity[SrmCoordinator], SensorEntity):
         return attrs or None
 
     # Large payloads: keep them out of the database.
-    _unrecorded_attributes = frozenset({"data", "clients"})
+    _unrecorded_attributes = frozenset({"data", "clients", "sessions", "devices"})

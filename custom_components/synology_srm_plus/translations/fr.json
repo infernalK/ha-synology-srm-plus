@@ -133,6 +133,80 @@
       },
       "clients_offline": {
         "name": "Clients hors ligne"
+      },
+      "router_rx": {
+        "name": "Débit routeur rx"
+      },
+      "router_tx": {
+        "name": "Débit routeur tx"
+      },
+      "band_rx": {
+        "name": "Débit Wi-Fi {band} rx"
+      },
+      "band_tx": {
+        "name": "Débit Wi-Fi {band} tx"
+      },
+      "connected_devices": {
+        "name": "Appareils connectés"
+      },
+      "node_status": {
+        "name": "État du nœud {node}"
+      },
+      "router_status": {
+        "name": "État du routeur"
+      },
+      "port_speed": {
+        "name": "Vitesse du port {port}"
+      },
+      "usb_usage": {
+        "name": "USB {volume} utilisation"
+      },
+      "usb_used": {
+        "name": "USB {volume} utilisé"
+      },
+      "usb_total": {
+        "name": "USB {volume} taille"
+      },
+      "threat_events_24h": {
+        "name": "Menaces détectées (24 h)"
+      },
+      "threat_events_7d": {
+        "name": "Menaces détectées (7 jours)"
+      },
+      "new_devices": {
+        "name": "Nouveaux appareils"
+      },
+      "admin_sessions": {
+        "name": "Sessions d'administration"
+      },
+      "blocked_ips": {
+        "name": "Adresses IP bloquées"
+      },
+      "port_forward_rules": {
+        "name": "Redirections de ports"
+      },
+      "safe_time": {
+        "name": "Safe Access {profile} temps sur internet"
+      },
+      "safe_status": {
+        "name": "Safe Access {profile} état"
+      }
+    },
+    "binary_sensor": {
+      "threat_protection": {
+        "name": "Protection contre les menaces"
+      },
+      "srm_exposed_wan": {
+        "name": "Interface d'administration joignable depuis Internet"
+      },
+      "external_admin_session": {
+        "name": "Session d'administration depuis Internet"
+      },
+      "port_link": {
+        "name": "Port {port}"
+      },
+      "safe_blocked": {
+        "name": "Safe Access {profile} bloqué"
       }
     }
   },

@@ -133,6 +133,80 @@
       },
       "clients_offline": {
         "name": "Offline clients"
+      },
+      "router_rx": {
+        "name": "Router throughput rx"
+      },
+      "router_tx": {
+        "name": "Router throughput tx"
+      },
+      "band_rx": {
+        "name": "Wi-Fi {band} throughput rx"
+      },
+      "band_tx": {
+        "name": "Wi-Fi {band} throughput tx"
+      },
+      "connected_devices": {
+        "name": "Connected devices"
+      },
+      "node_status": {
+        "name": "Node {node} status"
+      },
+      "router_status": {
+        "name": "Router status"
+      },
+      "port_speed": {
+        "name": "{port} link speed"
+      },
+      "usb_usage": {
+        "name": "USB {volume} usage"
+      },
+      "usb_used": {
+        "name": "USB {volume} used"
+      },
+      "usb_total": {
+        "name": "USB {volume} size"
+      },
+      "threat_events_24h": {
+        "name": "Threat events (24 h)"
+      },
+      "threat_events_7d": {
+        "name": "Threat events (7 days)"
+      },
+      "new_devices": {
+        "name": "New devices"
+      },
+      "admin_sessions": {
+        "name": "Admin sessions"
+      },
+      "blocked_ips": {
+        "name": "Blocked IP addresses"
+      },
+      "port_forward_rules": {
+        "name": "Port forwarding rules"
+      },
+      "safe_time": {
+        "name": "Safe Access {profile} internet time"
+      },
+      "safe_status": {
+        "name": "Safe Access {profile} status"
+      }
+    },
+    "binary_sensor": {
+      "threat_protection": {
+        "name": "Threat protection"
+      },
+      "srm_exposed_wan": {
+        "name": "Admin interface reachable from the Internet"
+      },
+      "external_admin_session": {
+        "name": "Admin session from the Internet"
+      },
+      "port_link": {
+        "name": "{port} link"
+      },
+      "safe_blocked": {
+        "name": "Safe Access {profile} blocked"
       }
     }
   },

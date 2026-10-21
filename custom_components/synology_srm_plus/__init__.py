@@ -20,7 +20,7 @@ from .coordinator import SrmCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.SENSOR, Platform.DEVICE_TRACKER]
+PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.DEVICE_TRACKER]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 

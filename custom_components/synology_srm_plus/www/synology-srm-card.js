@@ -18,7 +18,13 @@ const I18N = {
     mode: 'Mode', links: 'Links', storage: 'Storage', connection: 'Connection', ok: 'OK',
     search: 'Search a client…', all: 'All', sort: 'Sort', name: 'Name', download: 'Download',
     upload: 'Upload', nothing: 'No client', no_data: 'No Synology SRM Plus data found.', offline: 'Offline', ip: 'IP address',
-    offline_clients: 'Offline clients',
+    offline_clients: 'Offline clients', last_seen: 'Last seen', ago: 'ago', router_throughput: 'Router throughput',
+    devices: 'devices', ports: 'Ports', usb: 'USB storage', no_link: 'no link', security: 'Security', threats: 'Threat events',
+    last24: '24 h', last7: '7 days', new_devices: 'New devices', admin_sessions: 'Admin sessions', blocked_ips: 'Blocked IPs',
+    forwards: 'Port forwards', protected: 'Protected', unprotected: 'Not protected', exposed: 'Admin reachable from the Internet',
+    external_session: 'Admin session from the Internet', safe: 'Safe Access', internet_time: 'Internet time',
+    blocked_now: 'Blocked now', concerned: 'Concerned', normal: 'Normal', filter: 'Filter', safe_search: 'Safe search',
+    quota: 'Time quota', schedule: 'Schedule', hits: 'Sites flagged', none: 'None', sort_ip: 'IP address',
     fields: {
       ip: 'IPv4', ipv6: 'IPv6', mac: 'MAC', group: 'Connection', ssid: 'SSID', wifi_profile: 'Wi-Fi profile',
       signal: 'Signal', link_rate: 'Link rate', max_link_rate: 'Max link rate', rate_quality: 'Rate quality',
@@ -26,7 +32,7 @@ const I18N = {
       guest: 'Guest', blocked: 'Blocked', parental_control: 'Parental control', qos: 'QoS',
       high_priority: 'High priority', low_priority: 'Low priority', beamforming: 'Beamforming',
       interface: 'Interface', connection: 'Link', band: 'Band', wifi_bytes_rx: 'Wi-Fi bytes (rx)',
-      wifi_bytes_tx: 'Wi-Fi bytes (tx)',
+      wifi_bytes_tx: 'Wi-Fi bytes (tx)', last_seen: 'Last seen',
     },
   },
   fr: {
@@ -36,7 +42,13 @@ const I18N = {
     mode: 'Mode', links: 'Liens', storage: 'Stockage', connection: 'Connexion', ok: 'OK',
     search: 'Rechercher un client…', all: 'Tous', sort: 'Tri', name: 'Nom', download: 'Téléchargement',
     upload: 'Envoi', nothing: 'Aucun client', no_data: 'Aucune donnée Synology SRM Plus trouvée.', offline: 'Hors ligne', ip: 'Adresse IP',
-    offline_clients: 'Clients hors ligne',
+    offline_clients: 'Clients hors ligne', last_seen: 'Vu il y a', ago: '', router_throughput: 'Débit du routeur',
+    devices: 'appareils', ports: 'Ports', usb: 'Stockage USB', no_link: 'pas de lien', security: 'Sécurité', threats: 'Menaces détectées',
+    last24: '24 h', last7: '7 jours', new_devices: 'Nouveaux appareils', admin_sessions: "Sessions d'administration", blocked_ips: 'IP bloquées',
+    forwards: 'Redirections de ports', protected: 'Protégé', unprotected: 'Non protégé', exposed: "Administration joignable depuis Internet",
+    external_session: "Session d'administration depuis Internet", safe: 'Safe Access', internet_time: 'Temps sur internet',
+    blocked_now: 'Bloqué en ce moment', concerned: 'À surveiller', normal: 'Normal', filter: 'Filtre web', safe_search: 'Recherche sécurisée',
+    quota: 'Quota de temps', schedule: 'Plages horaires', hits: 'Sites signalés', none: 'Aucun', sort_ip: 'Adresse IP',
     fields: {
       ip: 'IPv4', ipv6: 'IPv6', mac: 'MAC', group: 'Connexion', ssid: 'SSID', wifi_profile: 'Profil Wi-Fi',
       signal: 'Signal', link_rate: 'Débit du lien', max_link_rate: 'Débit max du lien', rate_quality: 'Qualité du débit',
@@ -44,7 +56,7 @@ const I18N = {
       guest: 'Invité', blocked: 'Bloqué', parental_control: 'Contrôle parental', qos: 'QoS',
       high_priority: 'Priorité haute', low_priority: 'Priorité basse', beamforming: 'Beamforming',
       interface: 'Interface', connection: 'Lien', band: 'Bande', wifi_bytes_rx: 'Octets Wi-Fi (rx)',
-      wifi_bytes_tx: 'Octets Wi-Fi (tx)',
+      wifi_bytes_tx: 'Octets Wi-Fi (tx)', last_seen: 'Dernière connexion',
     },
   },
 };
@@ -83,6 +95,26 @@ function fmtDuration(stateObj) {
   const h = Math.floor((seconds % 86400) / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   return d ? `${d} d ${h} h` : `${h} h ${String(m).padStart(2, '0')} min`;
+}
+
+function ago(iso) {
+  const then = Date.parse(iso);
+  if (!Number.isFinite(then)) return '';
+  const minutes = Math.max(0, Math.round((Date.now() - then) / 60000));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `${hours} h`;
+  return `${Math.round(hours / 24)} d`;
+}
+
+const mapBy = (list, key) => Object.fromEntries((list || []).map((st) => [st.attributes[key], st]));
+
+function isPublicIp(address) {
+  const a = String(address || '').split('%')[0];
+  if (a.includes(':')) return !/^(fe80|fc|fd|::1)/i.test(a) && a.length > 3;
+  const p = a.split('.').map(Number);
+  if (p.length !== 4 || p.some((n) => !Number.isFinite(n))) return false;
+  return !(p[0] === 10 || p[0] === 127 || (p[0] === 172 && p[1] >= 16 && p[1] <= 31) || (p[0] === 192 && p[1] === 168) || (p[0] === 169 && p[1] === 254));
 }
 
 function fmtState(hass, stateObj) {
@@ -128,7 +160,7 @@ const STYLE = `
   .tile { background: var(--secondary-background-color, rgba(127,127,127,.12)); border-radius: 10px; padding: 10px; cursor: pointer; min-width: 0; }
   .tile .k { color: var(--secondary-text-color); font-size: .78em; }
   .tile .v { font-size: 1.05em; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tile .s { color: var(--secondary-text-color); font-size: .78em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tile .s { color: var(--secondary-text-color); font-size: .78em; overflow-wrap: anywhere; }
   .gauges { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; text-align: center; }
   .gauge { cursor: pointer; }
   .ring { width: 84px; height: 84px; }
@@ -215,6 +247,8 @@ class SynologySrmRouterCard extends SrmBaseCard {
     const t = strings(hass);
     const first = (key) => (found[key] || [])[0];
     const all = (key) => found[key] || [];
+    const bandRx = mapBy(all('band_rx'), 'band');
+    const bandTx = mapBy(all('band_tx'), 'band');
     const tile = (label, stateObj, extra = '') =>
       stateObj
         ? `<div class="tile" data-entity="${esc(stateObj.entity_id)}"><div class="k">${esc(label)}</div><div class="v">${esc(fmtState(hass, stateObj))}</div>${extra ? `<div class="s">${extra}</div>` : ''}</div>`
@@ -269,6 +303,9 @@ class SynologySrmRouterCard extends SrmBaseCard {
           a.channel != null ? `${t.channel} ${esc(a.channel)}` : '',
           a.average_signal != null ? `${t.signal} ${esc(a.average_signal)}%` : '',
           (a.ssids || []).map(esc).join(', '),
+          bandRx[s.attributes.group] || bandTx[s.attributes.group]
+            ? `rx ${fmtRate(bandRx[s.attributes.group] ? bandRx[s.attributes.group].state : 0)} · tx ${fmtRate(bandTx[s.attributes.group] ? bandTx[s.attributes.group].state : 0)}`
+            : '',
         ].filter(Boolean);
         return `<div class="tile" data-entity="${esc(s.entity_id)}"><div class="k">${esc(t.wifi)} ${esc(a.group)}</div><div class="v">${esc(s.state)} ${Number(s.state) === 1 ? t.client : t.clients}</div><div class="s">${lines.join(' · ')}</div></div>`;
       })
@@ -302,6 +339,32 @@ class SynologySrmRouterCard extends SrmBaseCard {
 
     const load = [first('load_1min'), first('load_5min'), first('load_15min')].filter(Boolean);
 
+    // router throughput (sees offloaded traffic), bands, ports, USB
+    const rrx = first('router_rx');
+    const rtx = first('router_tx');
+    const conn = first('connected_devices');
+    const routerTile = rrx || rtx
+      ? `<div class="tile" data-entity="${esc((rrx || rtx).entity_id)}"><div class="k">${esc(t.router_throughput)}${conn ? ` · ${esc(conn.state)} ${t.devices}` : ''}</div><div class="v">rx ${fmtRate(rrx ? rrx.state : 0)}</div><div class="v">tx ${fmtRate(rtx ? rtx.state : 0)}</div></div>`
+      : '';
+    const portSpeeds = all('port_speed')
+      .sort((a, b) => (a.attributes.port === 'WAN' ? '' : String(a.attributes.port)).localeCompare(b.attributes.port === 'WAN' ? '' : String(b.attributes.port)))
+      .map((st) => {
+        const linked = st.attributes.link !== false && Number(st.state) > 0;
+        return `<div class="tile" data-entity="${esc(st.entity_id)}" style="${linked ? '' : 'opacity:.55'}"><div class="k">${esc(st.attributes.port)}</div><div class="v">${linked ? esc(fmtState(hass, st)) : esc(t.no_link)}</div></div>`;
+      })
+      .join('');
+    const usbUsed = mapBy(all('usb_used'), 'volume');
+    const usbTotal = mapBy(all('usb_total'), 'volume');
+    const usb = all('usb_usage')
+      .map((st) => {
+        const v = Number(st.state);
+        if (isNaN(v)) return '';
+        const vol = st.attributes.volume;
+        const sizes = [usbUsed[vol], usbTotal[vol]].filter(Boolean).map((x) => fmtState(hass, x)).join(' / ');
+        return `<div class="tile" data-entity="${esc(st.entity_id)}"><div class="k">USB ${esc(vol)}</div><div class="v">${v}%</div><div class="s">${esc(sizes)}</div><div class="bar"><span style="width:${Math.min(100, v)}%;background:${level(v, 80, 95)}"></span></div></div>`;
+      })
+      .join('');
+
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <ha-card>
         <div class="head">
@@ -311,11 +374,11 @@ class SynologySrmRouterCard extends SrmBaseCard {
         </div>
         <div class="gauges">${gauge(t.cpu, first('cpu_usage'), 60, 85)}${gauge(t.memory, first('memory_usage'), 70, 90)}${gauge(t.swap, first('swap_usage'), 40, 70)}</div>
         ${load.length ? `<div class="sub" style="text-align:center;margin-top:4px" data-entity="${esc(load[0].entity_id)}">${esc(t.load)} ${load.map((s) => Number(s.state).toFixed(2)).join(' · ')}</div>` : ''}
-        ${trafficTiles ? `<h3>${esc(t.traffic)}</h3><div class="grid">${trafficTiles}</div>` : ''}
+        ${routerTile || trafficTiles ? `<h3>${esc(t.traffic)}</h3><div class="grid">${routerTile}${trafficTiles}</div>` : ''}
         ${wifiTiles ? `<h3>${esc(t.wifi)}</h3><div class="grid">${wifiTiles}</div>` : ''}
         <h3>${esc(t.network)}</h3>
-        <div class="grid">${tile(t.external, ext4)}${tile('IPv6', ext6)}${tile(t.mode, mode)}${tile(t.offline_clients, first('clients_offline'))}${links}</div>
-        ${storage ? `<h3>${esc(t.storage)}</h3><div class="grid">${storage}</div>` : ''}
+        <div class="grid">${tile(t.external, ext4)}${tile('IPv6', ext6)}${tile(t.mode, mode)}${tile(t.offline_clients, first('clients_offline'))}${links}</div>${portSpeeds ? `<h3>${esc(t.ports)}</h3><div class="grid">${portSpeeds}</div>` : ''}
+        ${usb || storage ? `<h3>${esc(t.storage)}</h3><div class="grid">${usb}${storage}</div>` : ''}
       </ha-card>`;
     this.shadowRoot.querySelectorAll('[data-entity]').forEach((el) =>
       el.addEventListener('click', () => this._moreInfo(el.dataset.entity)));
@@ -379,7 +442,7 @@ class SynologySrmClientsCard extends SrmBaseCard {
           <input class="search" id="search" type="search" placeholder="${esc(t.search)}" value="${esc(this._search)}" />
           <select class="sort" id="sort" title="${esc(t.sort)}">
             <option value="download">↓ ${esc(t.download)}</option><option value="upload">↑ ${esc(t.upload)}</option>
-            <option value="signal">${esc(t.signal)}</option><option value="ip">${esc(t.ip)}</option><option value="name">${esc(t.name)}</option>
+            <option value="signal">${esc(t.signal)}</option><option value="ip">${esc(t.ip)}</option><option value="last_seen">${esc(t.last_seen.replace(/ ago$/, ''))}</option><option value="name">${esc(t.name)}</option>
           </select>
         </div>
         <div class="list" id="list"></div>
@@ -455,6 +518,7 @@ class SynologySrmClientsCard extends SrmBaseCard {
     const byName = (a, b) => String(a.name).localeCompare(String(b.name));
     rows.sort((a, b) => {
       if (key === 'name') return byName(a, b);
+      if (key === 'last_seen') return (Date.parse(b.last_seen) || 0) - (Date.parse(a.last_seen) || 0) || byName(a, b);
       if (key === 'ip') return ipKey(a) - ipKey(b) || byName(a, b);
       return (Number(b[key]) || 0) - (Number(a[key]) || 0) || byName(a, b);
     });
@@ -477,6 +541,7 @@ class SynologySrmClientsCard extends SrmBaseCard {
           else if (k === 'link_rate' || k === 'max_link_rate') value = `${v} Mbit/s`;
           else if (k === 'signal') value = `${v}%`;
           else if (k === 'group') value = labelOf(v);
+          else if (k === 'last_seen') value = new Date(v).toLocaleString();
           else if (typeof v === 'boolean') value = v ? '✔' : '✖';
           return `<div><b>${esc(t.fields[k] || k)}</b><span>${esc(value)}</span></div>`;
         })
@@ -489,7 +554,8 @@ class SynologySrmClientsCard extends SrmBaseCard {
             const icon = ICONS[String(c.device_type || '').toLowerCase()] || ICONS.default;
             const off = c.group === 'Offline';
             const wifi = !off && c.group !== 'Wired';
-            const meta = [c.ip || c.ipv6, labelOf(c.group), c.ssid].filter(Boolean).join(' · ');
+            const seen = off && c.last_seen ? `${t.last_seen} ${ago(c.last_seen)} ${t.ago}`.trim() : '';
+            const meta = [c.ip || c.ipv6, labelOf(c.group), c.ssid, seen].filter(Boolean).join(' · ');
             const rate = c.link_rate ? `${c.link_rate} Mbit/s` : '';
             const status = off ? '<ha-icon icon="mdi:lan-disconnect" style="--mdc-icon-size:14px"></ha-icon>' : wifi ? bars(c.signal) : '<ha-icon icon="mdi:ethernet-cable" style="--mdc-icon-size:14px"></ha-icon>';
             return `<div class="row ${off ? 'off' : ''}" data-mac="${esc(c.mac)}" data-entity="${esc(c._entity)}">
@@ -504,11 +570,111 @@ class SynologySrmClientsCard extends SrmBaseCard {
   }
 }
 
+
+/* ------------------------------------------------------------------ security card */
+
+class SynologySrmSecurityCard extends SrmBaseCard {
+  static getStubConfig() {
+    return {};
+  }
+
+  _update() {
+    const hass = this._hass;
+    if (!hass || !this._config) return;
+    const found = integrationEntities(hass, this._config.device_id);
+    const sig = Object.values(found).flat().map((s) => s.entity_id + s.last_updated).join('|') + (hass.language || '');
+    if (sig === this._sig) return;
+    this._sig = sig;
+    this._render(found);
+  }
+
+  _render(found) {
+    const hass = this._hass;
+    const t = strings(hass);
+    const first = (key) => (found[key] || [])[0];
+    const all = (key) => found[key] || [];
+    if (!Object.keys(found).length) {
+      this.shadowRoot.innerHTML = `<style>${STYLE}</style><ha-card><div class="empty">${esc(t.no_data)}</div></ha-card>`;
+      return;
+    }
+    const prot = first('threat_protection');
+    const exposed = first('srm_exposed_wan');
+    const ext = first('external_admin_session');
+    const badge = (st, good, label, bad) =>
+      st ? `<span class="badge ${(st.state === 'on') === good ? '' : 'bad'}" data-entity="${esc(st.entity_id)}">${esc(label)}</span>` : '';
+    const badges =
+      badge(prot, true, prot && prot.state === 'on' ? t.protected : t.unprotected) +
+      (exposed && exposed.state === 'on' ? badge(exposed, false, t.exposed) : '') +
+      (ext && ext.state === 'on' ? badge(ext, false, t.external_session) : '');
+
+    const tile = (label, st, sub = '') =>
+      st ? `<div class="tile" data-entity="${esc(st.entity_id)}"><div class="k">${esc(label)}</div><div class="v">${esc(st.state)}</div>${sub ? `<div class="s">${sub}</div>` : ''}</div>` : '';
+    const t24 = first('threat_events_24h');
+    const t7 = first('threat_events_7d');
+    const lv = t7 ? t7.attributes : {};
+    const levels = t7 ? `high ${lv.high ?? 0} · medium ${lv.medium ?? 0} · low ${lv.low ?? 0}` : '';
+    const nd = first('new_devices');
+    const newNames = nd ? (nd.attributes.devices || []).map((d) => esc(d.hostname || d.name || d.mac || '?')).join(', ') : '';
+    const tiles =
+      tile(`${t.threats} (${t.last24})`, t24) +
+      tile(`${t.threats} (${t.last7})`, t7, esc(levels)) +
+      tile(t.new_devices, nd, newNames) +
+      tile(t.admin_sessions, first('admin_sessions')) +
+      tile(t.blocked_ips, first('blocked_ips')) +
+      tile(t.forwards, first('port_forward_rules'));
+
+    const sessionsSt = first('admin_sessions');
+    const sessions = sessionsSt ? (sessionsSt.attributes.sessions || []).slice(0, 8) : [];
+    const sessionRows = sessions
+      .map((x) => {
+        const bad = isPublicIp(x.from);
+        return `<div class="row" style="grid-template-columns:1fr auto;cursor:default"><div style="min-width:0"><div class="nm" style="${bad ? 'color:var(--error-color,#db4437)' : ''}">${esc(x.who || '')} · ${esc(x.from || '')}</div><div class="meta">${esc(x.descr || x.type || '')}</div></div><div class="rt meta">${esc(x.time || '')}</div></div>`;
+      })
+      .join('');
+
+    const times = mapBy(all('safe_time'), 'profile');
+    const status = mapBy(all('safe_status'), 'profile');
+    const blocked = mapBy(all('safe_blocked'), 'profile');
+    const profiles = Object.keys(times).sort((a, b) => a.localeCompare(b));
+    const flag = (on, icon, label) => `<span title="${esc(label)}" style="opacity:${on ? 1 : 0.25};margin-right:6px">${icon}</span>`;
+    const safeRows = profiles
+      .map((name) => {
+        const tm = times[name];
+        const a = tm.attributes;
+        const concerned = (status[name] ? status[name].state : a.concerned_status) === 'concerned';
+        const isBlocked = blocked[name] && blocked[name].state === 'on';
+        const minutes = Number(tm.state);
+        const h = Number.isFinite(minutes) ? `${Math.floor(minutes / 60)} h ${String(Math.round(minutes % 60)).padStart(2, '0')}` : '';
+        const hits = a.inappropriate_websites ? Object.entries(a.inappropriate_websites).map(([k, v]) => `${esc(k)} (${esc(v)})`).join(', ') : '';
+        return `<div class="row" style="grid-template-columns:1fr auto" data-entity="${esc(tm.entity_id)}"><div style="min-width:0"><div class="nm">${esc(name)}${isBlocked ? ` <span class="badge bad">${esc(t.blocked_now)}</span>` : ''}${concerned ? ` <span class="badge" style="background:var(--warning-color,#ffa600)">${esc(t.concerned)}</span>` : ''}</div>
+          <div class="meta">${flag(a.web_filter, '🌐', t.filter)}${flag(a.safe_search, '🔎', t.safe_search)}${flag(a.time_quota, '⏱', t.quota)}${flag(a.block_time, '🌙', t.schedule)}${hits ? `· ${esc(t.hits)}: ${hits}` : ''}</div></div>
+          <div class="rt"><div>${esc(h)}</div><div class="meta">${esc(t.internet_time)}</div></div></div>`;
+      })
+      .join('');
+
+    this.shadowRoot.innerHTML = `<style>${STYLE}</style>
+      <ha-card>
+        <div class="head"><ha-icon icon="mdi:shield-check"></ha-icon><div><div class="title">${esc(this._config.title || t.security)}</div></div><div class="badges">${badges}</div></div>
+        <div class="grid">${tiles}</div>
+        ${sessionRows ? `<h3>${esc(t.admin_sessions)}</h3>${sessionRows}` : ''}
+        ${safeRows ? `<h3>${esc(t.safe)}</h3>${safeRows}` : ''}
+      </ha-card>`;
+    this.shadowRoot.querySelectorAll('[data-entity]').forEach((el) =>
+      el.addEventListener('click', () => this._moreInfo(el.dataset.entity)));
+  }
+}
+
+if (!customElements.get('synology-srm-security-card')) customElements.define('synology-srm-security-card', SynologySrmSecurityCard);
 if (!customElements.get('synology-srm-router-card')) customElements.define('synology-srm-router-card', SynologySrmRouterCard);
 if (!customElements.get('synology-srm-clients-card')) customElements.define('synology-srm-clients-card', SynologySrmClientsCard);
 
 window.customCards = window.customCards || [];
 window.customCards.push(
+  {
+    type: 'synology-srm-security-card',
+    name: 'Synology SRM – Security',
+    description: 'Threat events, new devices, admin sessions, exposure and Safe Access (parental control).',
+  },
   {
     type: 'synology-srm-router-card',
     name: 'Synology SRM – Router',
