@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.1
+
+- USB disk usage and blocked IPs now work: some DSM APIs live behind another endpoint than `entry.cgi`, which is read from the router's API list.
+- A failing API call is logged as a warning once, then at debug level.
+
 ## 0.5.0
 
 - Real router throughput, per-band throughput, connected devices and router status (from the mesh node APIs).

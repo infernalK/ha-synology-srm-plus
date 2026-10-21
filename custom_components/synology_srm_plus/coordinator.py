@@ -38,10 +38,17 @@ STORAGE_VERSION = 1
 def _raw(
     api: str, method: str = "get", version: int = 1
 ) -> Callable[[synology_srm.Client], Any]:
-    """Call an SRM API the library has no wrapper for."""
-    return lambda c: c.http.call(
-        endpoint="entry.cgi", api=api, method=method, version=version
-    )
+    """Call an SRM API the library has no wrapper for.
+
+    The endpoint (entry.cgi, or another .cgi for some DSM APIs) is passed in by the
+    coordinator, from the API list the router returns.
+    """
+
+    def call(c: synology_srm.Client, endpoint: str = "entry.cgi") -> Any:
+        return c.http.call(endpoint=endpoint, api=api, method=method, version=version)
+
+    call.raw = True  # type: ignore[attr-defined]
+    return call
 
 
 # key -> (API name, call on the synology_srm client, poll every N updates)
@@ -233,6 +240,7 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._api_info: dict[str, Any] | None = None
         self._apis_loaded = False
         self._poll = 0
+        self._warned: set[str] = set()
         self._cache: dict[str, Any] = {}
         # Last time each client was seen online (kept across restarts).
         self._store: Store[dict[str, str]] = Store(
@@ -250,6 +258,19 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_setup(self) -> None:
         """Load the persisted last-seen times."""
         self._last_seen = await self._store.async_load() or {}
+
+    def _endpoint(self, api: str) -> str:
+        """Return the .cgi endpoint the router lists for an API."""
+        info = self._api_info.get(api) if isinstance(self._api_info, dict) else None
+        return str(info.get("path") or "entry.cgi") if isinstance(info, dict) else "entry.cgi"
+
+    def _warn_once(self, key: str, message: str, *args: Any) -> None:
+        """Warn the first time a call fails, then only log at debug level."""
+        if key in self._warned:
+            _LOGGER.debug(message, *args)
+        else:
+            self._warned.add(key)
+            _LOGGER.warning(message, *args)
 
     def _load_available_apis(self) -> None:
         """Read (once) the API names offered by the router."""
@@ -334,15 +355,18 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 continue
             called += 1
             try:
-                results[key] = call(self.client)
+                if getattr(call, "raw", False):
+                    results[key] = call(self.client, endpoint=self._endpoint(api))
+                else:
+                    results[key] = call(self.client)
             except SynologyException as err:
                 failures += 1
                 results[key] = self._cache.get(key)
-                _LOGGER.warning("SRM call %s (%s) failed: %s", key, api, err)
+                self._warn_once(key, "SRM call %s (%s) failed: %s", key, api, err)
             except Exception as err:  # noqa: BLE001 - unknown payload/lib errors
                 failures += 1
                 results[key] = self._cache.get(key)
-                _LOGGER.warning("SRM call %s (%s) crashed: %r", key, api, err)
+                self._warn_once(key, "SRM call %s (%s) crashed: %r", key, api, err)
             else:
                 self._cache[key] = results[key]
         if called and failures == called:
