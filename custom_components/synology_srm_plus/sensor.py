@@ -853,7 +853,9 @@ def _security_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
                         {"name": x.get("name"), "mac": str(x.get("mac_addr", "")).lower()}
                         for x in _dig(d.get("macfilter_devices"), "devices") or []
                         if isinstance(x, dict)
-                    ]
+                    ],
+                    "broadcast_storm_prevention": _dig(d.get("macfilter_devices"), "enable_prevent_broadcast"),
+                    "max_broadcast_packets_per_second": _dig(d.get("macfilter_devices"), "maximum_broadcast"),
                 },
             )
         )

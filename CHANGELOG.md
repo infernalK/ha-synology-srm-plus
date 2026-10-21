@@ -2,6 +2,7 @@
 
 ## 0.5.5
 
+- Wi-Fi MAC filtering sensors renamed to what SRM calls them: *Wi-Fi system block list* (applies to every SSID and takes precedence over custom filters; also holds the devices blocked by broadcast-storm prevention, whose settings are attributes) and *Custom MAC filters*.
 - *Blocked IP addresses*: the auto-block settings (enabled, failed attempts, window, expiry) and the blocked addresses are now attributes of the sensor.
 
 ## 0.5.4

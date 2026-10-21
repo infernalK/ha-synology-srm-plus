@@ -192,10 +192,10 @@
         "name": "Safe Access {profile} status"
       },
       "mac_filter_profiles": {
-        "name": "MAC filter profiles"
+        "name": "Custom MAC filters"
       },
       "mac_filter_devices": {
-        "name": "MAC filter list"
+        "name": "Wi-Fi system block list"
       },
       "blocked_devices": {
         "name": "Blocked devices"
