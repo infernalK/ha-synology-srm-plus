@@ -40,7 +40,14 @@ SRM models and firmwares differ: the integration reads the list of APIs your rou
 
 ## Dashboard cards
 
-The integration ships two cards and loads them automatically (no resource to add):
+The integration ships two cards and loads them automatically (no resource to add).
+
+| Router card | Clients card |
+|---|---|
+| ![Router card](docs/images/router-card.png) | ![Clients card](docs/images/clients-card.png) |
+
+*Rendered with sample data. In Home Assistant the client icons are Material Design icons (the emoji
+here are stand-ins used by the preview harness); the colors follow your theme.*
 
 ```yaml
 type: custom:synology-srm-router-card     # CPU / memory gauges, traffic, Wi-Fi, network, storage
