@@ -2,6 +2,7 @@
 
 ## 0.5.5
 
+- A call that fails while others run is retried once, alone, before being reported (the router can answer a busy request with an incomplete payload).
 - The router is queried on a few threads: setup and updates are much faster (the first refresh took about a minute, which delayed Home Assistant's start).
 - New *Access control* card (blocked IPs with the auto-block settings, Wi-Fi block list, custom MAC filters, blocked devices), split from the *Threat prevention* card.
 - Wi-Fi MAC filtering sensors renamed to what SRM calls them: *Wi-Fi system block list* (applies to every SSID and takes precedence over custom filters; also holds the devices blocked by broadcast-storm prevention, whose settings are attributes) and *Custom MAC filters*.

@@ -34,7 +34,7 @@ from .const import DOMAIN, SCAN_INTERVAL
 _LOGGER = logging.getLogger(__name__)
 
 STORAGE_VERSION = 1
-PARALLEL_CALLS = 4  # simultaneous requests to the router
+PARALLEL_CALLS = 3  # simultaneous requests to the router
 
 
 def _raw(
@@ -402,7 +402,9 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     break
         _LOGGER.info("SRM explore finished: %d answered out of %d APIs", ok, len(wanted))
 
-    def _call_endpoint(self, key: str, api: str, call: Any) -> tuple[str, Any, bool]:
+    def _call_endpoint(
+        self, key: str, api: str, call: Any, warn: bool = True
+    ) -> tuple[str, Any, bool]:
         """Call one endpoint; return (key, result, ok). Never raises."""
         try:
             if getattr(call, "raw", False):
@@ -410,10 +412,12 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 result = call(self.client)
         except SynologyException as err:
-            self._warn_once(key, "SRM call %s (%s) failed: %s", key, api, err)
+            if warn:
+                self._warn_once(key, "SRM call %s (%s) failed: %s", key, api, err)
             return key, self._cache.get(key), False
         except Exception as err:  # noqa: BLE001 - unknown payload/lib errors
-            self._warn_once(key, "SRM call %s (%s) crashed: %r", key, api, err)
+            if warn:
+                self._warn_once(key, "SRM call %s (%s) crashed: %r", key, api, err)
             return key, self._cache.get(key), False
         return key, result, True
 
@@ -440,11 +444,19 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         outcomes: list[tuple[str, Any, bool]] = []
         if due:
-            outcomes.append(self._call_endpoint(*due[0]))
+            outcomes.append(self._call_endpoint(*due[0], warn=False))
             rest = due[1:]
             if rest:
                 with ThreadPoolExecutor(max_workers=PARALLEL_CALLS) as pool:
-                    outcomes.extend(pool.map(lambda item: self._call_endpoint(*item), rest))
+                    outcomes.extend(
+                        pool.map(lambda item: self._call_endpoint(*item, warn=False), rest)
+                    )
+            # A call that fails while others run (the router can answer a busy request
+            # with an incomplete payload) is retried once, alone, before it is reported.
+            by_key = {item[0]: item for item in due}
+            outcomes = [
+                o if o[2] else self._call_endpoint(*by_key[o[0]]) for o in outcomes
+            ]
         failures = 0
         for key, result, ok in outcomes:
             results[key] = result
