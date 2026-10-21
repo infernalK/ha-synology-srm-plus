@@ -12,7 +12,7 @@
 
 **Tout ce que sait votre routeur Synology, dans Home Assistant : santé, vrai trafic, Wi-Fi, chaque client, sécurité et contrôle parental, avec des cartes de tableau de bord prêtes à l'emploi.**
 
-Développé et testé sur un **RT2600ac (SRM 1.3.2)**. L'intégration native `synology_srm` ne liste que les appareils connectés ; celle-ci expose le routeur lui-même. Elle cohabite avec l'intégration native (domaine différent) et se configure depuis l'interface.
+Développée et testée sur un **RT2600ac (SRM 1.3.2)**. L'intégration native `synology_srm` ne liste que les appareils connectés ; celle-ci expose le routeur lui-même. Elle cohabite avec l'intégration native (domaine différent) et se configure depuis l'interface.
 
 ## Ce que vous obtenez
 
