@@ -6,6 +6,7 @@ from typing import Any
 
 from homeassistant.components.device_tracker import ScannerEntity, SourceType
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -24,6 +25,20 @@ async def async_setup_entry(
         CONF_TRACK_ALL, entry.options.get(CONF_TRACK_CLIENTS, False)
     )
     selected = set(entry.options.get(CONF_TRACKED_CLIENTS) or [])
+
+    # Options changed: forget the trackers that are no longer wanted (no ghost entities).
+    if not track_all:
+        registry = er.async_get(hass)
+        prefix = f"{entry.entry_id}_client_"
+        for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+            unique_id = entity.unique_id
+            if (
+                entity.domain == "device_tracker"
+                and unique_id.startswith(prefix)
+                and unique_id[len(prefix) :] not in selected
+            ):
+                registry.async_remove(entity.entity_id)
+
     if not track_all and not selected:
         return
     coordinator = entry.runtime_data
