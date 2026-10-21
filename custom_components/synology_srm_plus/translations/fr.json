@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Routeur Synology SRM",
+        "data": {
+          "host": "Hôte",
+          "username": "Nom d'utilisateur",
+          "password": "Mot de passe",
+          "port": "Port",
+          "ssl": "Utiliser HTTPS",
+          "verify_ssl": "Vérifier le certificat SSL"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Identifiants invalides (le compte doit être administrateur)",
+      "cannot_connect": "Impossible de se connecter au routeur"
+    },
+    "abort": {
+      "already_configured": "Ce routeur est déjà configuré"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "system_utilization": { "name": "Utilisation système (brut)" },
+      "traffic_live": { "name": "Trafic en direct (brut)" },
+      "external_ip": { "name": "IP externe (brut)" },
+      "system_info": { "name": "Infos système (brut)" },
+      "wan_status": { "name": "État du WAN (brut)" },
+      "wifi_devices": { "name": "Appareils Wi-Fi (brut)" }
+    }
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Synology SRM router",
+        "data": {
+          "host": "Host",
+          "username": "Username",
+          "password": "Password",
+          "port": "Port",
+          "ssl": "Use HTTPS",
+          "verify_ssl": "Verify SSL certificate"
+        }
+      }
+    },
+    "error": {
+      "invalid_auth": "Invalid credentials (the account must be an administrator)",
+      "cannot_connect": "Unable to connect to the router"
+    },
+    "abort": {
+      "already_configured": "This router is already configured"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "system_utilization": { "name": "System utilization (raw)" },
+      "traffic_live": { "name": "Live traffic (raw)" },
+      "external_ip": { "name": "External IP (raw)" },
+      "system_info": { "name": "System info (raw)" },
+      "wan_status": { "name": "WAN status (raw)" },
+      "wifi_devices": { "name": "Wi-Fi devices (raw)" }
+    }
+  }
+}
