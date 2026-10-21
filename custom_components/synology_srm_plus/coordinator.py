@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 import ipaddress
 import json
 import logging
@@ -33,6 +34,7 @@ from .const import DOMAIN, SCAN_INTERVAL
 _LOGGER = logging.getLogger(__name__)
 
 STORAGE_VERSION = 1
+PARALLEL_CALLS = 4  # simultaneous requests to the router
 
 
 def _raw(
@@ -400,43 +402,68 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     break
         _LOGGER.info("SRM explore finished: %d answered out of %d APIs", ok, len(wanted))
 
+    def _call_endpoint(self, key: str, api: str, call: Any) -> tuple[str, Any, bool]:
+        """Call one endpoint; return (key, result, ok). Never raises."""
+        try:
+            if getattr(call, "raw", False):
+                result = call(self.client, endpoint=self._endpoint(api))
+            else:
+                result = call(self.client)
+        except SynologyException as err:
+            self._warn_once(key, "SRM call %s (%s) failed: %s", key, api, err)
+            return key, self._cache.get(key), False
+        except Exception as err:  # noqa: BLE001 - unknown payload/lib errors
+            self._warn_once(key, "SRM call %s (%s) crashed: %r", key, api, err)
+            return key, self._cache.get(key), False
+        return key, result, True
+
     def _fetch(self) -> dict[str, Any]:
-        """Call every endpoint that is due and the router offers (blocking)."""
+        """Call every endpoint that is due and the router offers (blocking).
+
+        The router is slow (about half a second per call), so the due calls run on a
+        few threads. The first call is made alone: it logs in, and the session id is
+        then shared by the other calls.
+        """
+        started = time.monotonic()
         if not self._apis_loaded:
             self._load_available_apis()
         results: dict[str, Any] = {}
-        failures = 0
-        called = 0
+        due: list[tuple[str, str, Any]] = []
         for key, (api, call, every) in ENDPOINTS.items():
             if self._available_apis is not None and api not in self._available_apis:
                 _LOGGER.debug("SRM API %s not offered by this router, skipping", api)
                 results[key] = None
-                continue
-            if self._poll % every and key in self._cache:
+            elif self._poll % every and key in self._cache:
                 results[key] = self._cache[key]
-                continue
-            called += 1
-            try:
-                if getattr(call, "raw", False):
-                    results[key] = call(self.client, endpoint=self._endpoint(api))
-                else:
-                    results[key] = call(self.client)
-            except SynologyException as err:
-                failures += 1
-                results[key] = self._cache.get(key)
-                self._warn_once(key, "SRM call %s (%s) failed: %s", key, api, err)
-            except Exception as err:  # noqa: BLE001 - unknown payload/lib errors
-                failures += 1
-                results[key] = self._cache.get(key)
-                self._warn_once(key, "SRM call %s (%s) crashed: %r", key, api, err)
             else:
-                self._cache[key] = results[key]
-        if called and failures == called:
+                due.append((key, api, call))
+
+        outcomes: list[tuple[str, Any, bool]] = []
+        if due:
+            outcomes.append(self._call_endpoint(*due[0]))
+            rest = due[1:]
+            if rest:
+                with ThreadPoolExecutor(max_workers=PARALLEL_CALLS) as pool:
+                    outcomes.extend(pool.map(lambda item: self._call_endpoint(*item), rest))
+        failures = 0
+        for key, result, ok in outcomes:
+            results[key] = result
+            if ok:
+                self._cache[key] = result
+            else:
+                failures += 1
+        if outcomes and failures == len(outcomes):
             raise UpdateFailed("All SRM calls failed")
         self._poll += 1
         normalized = normalize_clients(results.get("clients"), results.get("wifi_devices"))
         results["client_list"], results["offline_list"] = normalized or (None, None)
         self._annotate_safe_profiles(results)
+        _LOGGER.debug(
+            "SRM update: %d calls in %.1f s (%d failed)",
+            len(outcomes),
+            time.monotonic() - started,
+            failures,
+        )
         return results
 
     @staticmethod

@@ -164,6 +164,26 @@ def main() -> int:
     assert attrs["failed_attempts"] == 5 and attrs["within_minutes"] == 1 and attrs["auto_block_enabled"] is True, attrs
     assert attrs["expire_days"] == 0 and attrs["addresses"] == [{"ip": "203.0.113.9"}], attrs
 
+    # the threaded fetch: every due endpoint is called once, a failing one is isolated
+    from unittest.mock import MagicMock  # noqa: PLC0415
+
+    fake = object.__new__(coordinator.SrmCoordinator)
+    fake.client = MagicMock()
+    fake.client.http.call.return_value = {"nodes": []}
+    fake.client.core.get_ngfw_traffic.side_effect = RuntimeError("boom")
+    fake._available_apis = None  # noqa: SLF001
+    fake._api_info = None  # noqa: SLF001
+    fake._apis_loaded = True  # noqa: SLF001
+    fake._poll = 0  # noqa: SLF001
+    fake._cache = {}  # noqa: SLF001
+    fake._warned = set()  # noqa: SLF001
+    fetched = fake._fetch()  # noqa: SLF001
+    assert fake._poll == 1 and "mesh_nodes" in fetched and "client_list" in fetched, fetched.keys()
+    assert fetched["traffic_live"] is None and "traffic_live" in fake._warned  # noqa: SLF001
+    assert fake.client.http.call.call_count >= 10, fake.client.http.call.call_count
+    fake._fetch()  # noqa: SLF001  (second poll: slow endpoints come from the cache)
+    assert fake._poll == 2  # noqa: SLF001
+
     # secrets must not reach the log
     masked = coordinator.redact(
         {"password": "hunter2", "pin": "1234", "mac": "aa:bb:cc:dd:ee:ff", "ip": "84.55.140.122",
