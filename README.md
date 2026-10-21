@@ -106,7 +106,11 @@ Use an **administrator** account on the router (a dedicated one such as `ha` is 
 
 The router exposes hundreds of API endpoints and models differ. To help map what yours offers, call the service `synology_srm_plus.explore_api` (*Developer tools → Actions*, optional `filter` such as `Wifi`). It runs in the background for a few minutes, calls only read-only `get` / `list` methods, skips anything that looks like it could have a side effect, and writes what answers to the Home Assistant log (INFO level for `custom_components.synology_srm_plus`).
 
-The log output is **masked**: passwords, keys and PINs, MAC addresses and public IP addresses are replaced. Device names, SSIDs and private addresses are not detected, so please skim it before sharing.
+The log output is **masked**: passwords, keys and PINs, account and host names, SSIDs, MAC addresses and public IP addresses are replaced (private addresses are shortened). Names that do not sit under a recognised key (for example profile names) are not detected, so please skim it before sharing.
+
+## Privacy
+
+The SRM API takes the account, password and session id as URL parameters, and HTTP libraries quote URLs in their errors and debug logs. This integration scrubs them (`passwd=***`) from its own messages and from the `urllib3` loggers, never logs a traceback of a failed login, and masks addresses, MAC addresses, names and secrets in the diagnostics file. The Wi-Fi network settings are reduced to harmless fields before being stored, because the raw payload holds the Wi-Fi passwords.
 
 ## Help us support more models
 

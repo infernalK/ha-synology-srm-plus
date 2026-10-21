@@ -184,6 +184,39 @@ def main() -> int:
     fake._fetch()  # noqa: SLF001  (second poll: slow endpoints come from the cache)
     assert fake._poll == 2  # noqa: SLF001
 
+    # URL credentials in error messages and in the HTTP libraries' debug logs
+    leaky = Exception(
+        "HTTPSConnectionPool(host='192.168.1.2', port=8001): Max retries exceeded with url: "
+        "/webapi/auth.cgi?api=SYNO.API.Auth&version=2&method=Login&format=sid&account=admin&passwd=hunter2%21&_sid=SESSION123 (Caused by ...)"
+    )
+    message = coordinator.safe_error(leaky)
+    for secret in ("hunter2", "SESSION123", "account=admin"):
+        assert secret not in message, message
+    assert "passwd=***" in message and "_sid=***" in message, message
+    import logging  # noqa: PLC0415
+
+    record = logging.LogRecord(
+        "urllib3.connectionpool", logging.DEBUG, __file__, 1,
+        '%s "GET /webapi/auth.cgi?account=%s&passwd=%s HTTP/1.1" 200', ("https://r:8001", "admin", "hunter2"), None,
+    )
+    assert coordinator._ScrubFilter().filter(record)  # noqa: SLF001
+    assert "hunter2" not in record.getMessage() and "passwd=***" in record.getMessage(), record.getMessage()
+    assert any(
+        isinstance(f, coordinator._ScrubFilter)  # noqa: SLF001
+        for f in logging.getLogger("urllib3.connectionpool").filters
+    ), "log scrubber not installed"
+
+    # the diagnostics file must not hold addresses, MACs, names or secrets
+    from custom_components.synology_srm_plus import diagnostics  # noqa: PLC0415
+
+    dumped_diag = json.dumps(diagnostics.redact_data(DATA), default=str)
+    for private in (
+        "192.0.2.40", "192.0.2.101", "192.0.2.11", "10.0.0.20", "203.0.113", "aa:bb:cc:00:00:01",
+        "AA:BB:CC:00:00:01", "aa:bb:cc:00:00:99", "Laptop", "Old phone", "Gadget", "MyHome", "SERIAL", "Kids",
+    ):
+        assert private not in dumped_diag, f"diagnostics leak {private!r}"
+    assert "xx:xx:xx" in json.dumps(coordinator.redact({"aa:bb:cc:dd:ee:ff": 1})), "MAC dict keys not masked"
+
     # secrets must not reach the log
     masked = coordinator.redact(
         {"password": "hunter2", "pin": "1234", "mac": "aa:bb:cc:dd:ee:ff", "ip": "84.55.140.122",

@@ -9,6 +9,7 @@ from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 
 from . import SrmConfigEntry
+from .coordinator import redact
 
 TO_REDACT = {
     CONF_HOST,
@@ -35,7 +36,19 @@ TO_REDACT = {
     "password",
     "sn",
     "serial_number",
+    "ip_addr",
+    "ip6_addr",
+    "wifi_ssid",
+    "mesh_node_name",
+    "addresses",
+    "devices",
+    "sessions",
 }
+
+
+def redact_data(data: Any) -> Any:
+    """Mask secrets, MAC addresses, IPs and names in a payload (keys and values)."""
+    return async_redact_data(redact(data), TO_REDACT)
 
 
 async def async_get_config_entry_diagnostics(
@@ -45,8 +58,8 @@ async def async_get_config_entry_diagnostics(
     coordinator = entry.runtime_data
     apis = coordinator.available_apis
     return {
-        "config": async_redact_data(dict(entry.data), TO_REDACT),
+        "config": redact_data(dict(entry.data)),
         "api_count": len(apis) if apis is not None else None,
         "apis": sorted(apis) if apis is not None else None,
-        "data": async_redact_data(coordinator.data, TO_REDACT),
+        "data": redact_data(coordinator.data),
     }

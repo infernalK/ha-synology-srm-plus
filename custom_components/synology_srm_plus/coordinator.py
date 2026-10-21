@@ -237,9 +237,55 @@ _SECRET_KEY = re.compile(
     r"(^|_)key($|_)|(^|_)sn$|auth_key|wpa",
     re.I,
 )
+_IDENTITY_KEY = re.compile(
+    r"^(account|username|user|who|email|hostname|clientname|ssid|essid|wifi_ssid)$", re.I
+)
 _MAC = re.compile(r"\b(?:[0-9a-f]{2}[:-]){5}[0-9a-f]{2}\b", re.I)
 _IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}\b")
 _IPV6 = re.compile(r"\b(?:[0-9a-f]{1,4}:){2,7}[0-9a-f]{0,4}\b", re.I)
+
+
+# The synology-srm library sends the account, password and session id as URL query
+# parameters, and requests / urllib3 quote the URL in their error messages and in
+# their debug logs: scrub them before anything reaches a log.
+_URL_SECRETS = re.compile(
+    r"(?i)\b(passwd|password|pwd|_sid|sid|synotoken|token|otp_code|account)=[^&\s'\")]*"
+)
+
+
+def scrub_secrets(text: str) -> str:
+    """Mask credentials and session ids that appear as URL query parameters."""
+    return _URL_SECRETS.sub(lambda m: f"{m.group(1)}=***", text)
+
+
+def safe_error(err: BaseException) -> str:
+    """Return an error message that cannot hold the password or the session id."""
+    return scrub_secrets(f"{type(err).__name__}: {err}")
+
+
+class _ScrubFilter(logging.Filter):
+    """Logging filter that masks URL credentials in a record."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            message = record.getMessage()
+        except Exception:  # noqa: BLE001
+            return True
+        scrubbed = scrub_secrets(message)
+        if scrubbed != message:
+            record.msg, record.args = scrubbed, ()
+        return True
+
+
+def _install_log_scrubber() -> None:
+    """Scrub the HTTP libraries' loggers (idempotent)."""
+    for name in ("urllib3.connectionpool", "urllib3.util.retry", "urllib3.poolmanager"):
+        logger = logging.getLogger(name)
+        if not any(isinstance(f, _ScrubFilter) for f in logger.filters):
+            logger.addFilter(_ScrubFilter())
+
+
+_install_log_scrubber()
 
 
 def _mask_ip(match: re.Match[str]) -> str:
@@ -258,7 +304,11 @@ def redact(value: Any) -> Any:
     """Return value with secrets, MAC addresses and public IPs masked."""
     if isinstance(value, dict):
         return {
-            k: "**redacted**" if _SECRET_KEY.search(str(k)) and v else redact(v)
+            (_MAC.sub("xx:xx:xx:xx:xx:xx", k) if isinstance(k, str) else k): (
+                "**redacted**"
+                if (_SECRET_KEY.search(str(k)) or _IDENTITY_KEY.match(str(k))) and v
+                else redact(v)
+            )
             for k, v in value.items()
         }
     if isinstance(value, list):
@@ -342,7 +392,9 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         try:
             apis = self.client.base.query_info()
         except Exception as err:  # noqa: BLE001
-            _LOGGER.warning("SRM query_info failed, assuming all APIs exist: %r", err)
+            _LOGGER.warning(
+                "SRM query_info failed, assuming all APIs exist: %s", safe_error(err)
+            )
             return
         if isinstance(apis, dict):
             self._api_info = apis
@@ -413,11 +465,15 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 result = call(self.client)
         except SynologyException as err:
             if warn:
-                self._warn_once(key, "SRM call %s (%s) failed: %s", key, api, err)
+                self._warn_once(
+                    key, "SRM call %s (%s) failed: %s", key, api, safe_error(err)
+                )
             return key, self._cache.get(key), False
         except Exception as err:  # noqa: BLE001 - unknown payload/lib errors
             if warn:
-                self._warn_once(key, "SRM call %s (%s) crashed: %r", key, api, err)
+                self._warn_once(
+                    key, "SRM call %s (%s) crashed: %s", key, api, safe_error(err)
+                )
             return key, self._cache.get(key), False
         return key, result, True
 

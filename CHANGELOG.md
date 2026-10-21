@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.6
+
+- Privacy: the account, password and session id (sent by SRM as URL parameters) are scrubbed from error messages and from the `urllib3` debug logs; a failed login no longer logs a traceback.
+- The diagnostics file now masks IP addresses, MAC addresses (also as dictionary keys), names, SSIDs and secrets everywhere, not only under a few keys; the explore log also masks account, user, host and SSID names.
+
 ## 0.5.5
 
 - A call that fails while others run is retried once, alone, before being reported (the router can answer a busy request with an incomplete payload).

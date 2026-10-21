@@ -40,7 +40,7 @@ from .const import (
     DEFAULT_VERIFY_SSL,
     DOMAIN,
 )
-from .coordinator import build_client
+from .coordinator import build_client, safe_error
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -120,8 +120,9 @@ class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
                 )
             except SynologyException:
                 errors["base"] = "invalid_auth"
-            except Exception:  # noqa: BLE001
-                _LOGGER.exception("Unable to connect to SRM")
+            except Exception as err:  # noqa: BLE001
+                # No traceback: the error text can quote the URL, which holds the password.
+                _LOGGER.warning("Unable to connect to SRM: %s", safe_error(err))
                 errors["base"] = "cannot_connect"
             else:
                 return self.async_create_entry(

@@ -106,7 +106,11 @@ Utilisez un compte **administrateur** du routeur (un compte dédié comme `ha` e
 
 Le routeur expose des centaines de points d'accès (API) et les modèles diffèrent. Pour cartographier ce que le vôtre propose, appelez le service `synology_srm_plus.explore_api` (*Outils de développement → Actions*, paramètre facultatif `filter` comme `Wifi`). Il tourne en arrière-plan quelques minutes, n'appelle que des méthodes en lecture seule (`get` / `list`), ignore tout ce qui pourrait avoir un effet de bord, et écrit ce qui répond dans le journal de Home Assistant (niveau INFO pour `custom_components.synology_srm_plus`).
 
-Le journal est **masqué** : mots de passe, clés et codes PIN, adresses MAC et adresses IP publiques sont remplacés. Les noms d'appareils, les SSID et les adresses privées ne sont pas détectés : relisez avant de partager.
+Le journal est **masqué** : mots de passe, clés et codes PIN, noms de comptes et d'hôtes, SSID, adresses MAC et adresses IP publiques sont remplacés (les adresses privées sont raccourcies). Les noms qui ne sont pas sous une clé reconnue (par exemple les noms de profils) ne sont pas détectés : relisez avant de partager.
+
+## Confidentialité
+
+L'API de SRM reçoit le compte, le mot de passe et l'identifiant de session dans l'URL, et les bibliothèques HTTP citent les URL dans leurs erreurs et leurs journaux de débogage. Cette intégration les masque (`passwd=***`) dans ses propres messages et dans les journaux de `urllib3`, n'écrit jamais la trace d'une connexion échouée, et masque adresses, adresses MAC, noms et secrets dans le fichier de diagnostic. Les réglages des réseaux Wi-Fi sont réduits à des champs sans risque avant stockage, car les données brutes contiennent les mots de passe Wi-Fi.
 
 ## Aidez-nous à prendre en charge plus de modèles
 
