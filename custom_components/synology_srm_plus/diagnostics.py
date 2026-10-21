@@ -32,6 +32,8 @@ TO_REDACT = {
     "from",
     "who",
     "profile",
+    "safe_profile",
+    "profile_ids",
     "pin",
     "password",
     "sn",
