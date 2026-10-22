@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.7
+
+- New option **Use Safe Access** (*Configure* on the integration, on by default). Turned off, the Safe Access calls are no longer made and the Safe Access entities are deleted, for routers that do not use parental control.
+
 ## 0.5.6
 
 - Privacy: the account, password and session id (sent by SRM as URL parameters) are scrubbed from error messages and from the `urllib3` debug logs; a failed login no longer logs a traceback.
