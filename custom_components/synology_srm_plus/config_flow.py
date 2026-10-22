@@ -31,6 +31,7 @@ from homeassistant.helpers.selector import (
 )
 
 from .const import (
+    CONF_SAFE_ACCESS,
     CONF_TRACK_ALL,
     CONF_TRACK_CLIENTS,
     CONF_TRACKED_CLIENTS,
@@ -46,7 +47,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class SrmOptionsFlow(OptionsFlowWithReload):
-    """Handle the options: which clients get a presence entity."""
+    """Handle the options: presence entities and Safe Access."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -82,6 +83,7 @@ class SrmOptionsFlow(OptionsFlowWithReload):
                         mode=SelectSelectorMode.DROPDOWN,
                     )
                 ),
+                vol.Required(CONF_SAFE_ACCESS, default=True): bool,
             }
         )
         suggested = {
@@ -89,6 +91,7 @@ class SrmOptionsFlow(OptionsFlowWithReload):
                 CONF_TRACK_ALL, options.get(CONF_TRACK_CLIENTS, False)
             ),
             CONF_TRACKED_CLIENTS: options.get(CONF_TRACKED_CLIENTS, []),
+            CONF_SAFE_ACCESS: options.get(CONF_SAFE_ACCESS, True),
         }
         return self.async_show_form(
             step_id="init",

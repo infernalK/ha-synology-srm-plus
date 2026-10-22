@@ -29,7 +29,7 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 from homeassistant.util import dt as dt_util
 
 from .clients import normalize_clients
-from .const import DOMAIN, SCAN_INTERVAL
+from .const import CONF_SAFE_ACCESS, DOMAIN, SCAN_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -489,8 +489,11 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._load_available_apis()
         results: dict[str, Any] = {}
         due: list[tuple[str, str, Any]] = []
+        safe_access = self.config_entry.options.get(CONF_SAFE_ACCESS, True)
         for key, (api, call, every) in ENDPOINTS.items():
-            if self._available_apis is not None and api not in self._available_apis:
+            if key.startswith("safe_") and not safe_access:
+                results[key] = None
+            elif self._available_apis is not None and api not in self._available_apis:
                 _LOGGER.debug("SRM API %s not offered by this router, skipping", api)
                 results[key] = None
             elif self._poll % every and key in self._cache:

@@ -39,6 +39,8 @@ Each connection sensor (e.g. `sensor.<router>_clients_wi_fi_5g`) has a `clients`
 
 If you prefer one entity per device, use the **presence tracking option** (*Configure* on the integration): pick the clients that get a presence entity, or track every client. Unselected clients are removed again, no ghost entities. It is the same idea as the built-in integration, so keep only one of the two if you do not want duplicates.
 
+If you do not use Safe Access, untick **Use Safe Access** in the same *Configure* dialog: its calls are no longer made and its entities are deleted.
+
 ## Dashboard cards
 
 Five cards are included and loaded automatically (no resource to add):

@@ -39,6 +39,8 @@ Chaque capteur de connexion (par exemple `sensor.<routeur>_clients_wi_fi_5g`) a 
 
 Si vous préférez une entité par appareil, utilisez l'**option de suivi de présence** (*Configurer* sur l'intégration) : choisissez les clients qui reçoivent une entité de présence, ou suivez-les tous. Les clients décochés sont supprimés, sans entités fantômes. C'est la même idée que l'intégration native : n'en gardez qu'une des deux pour éviter les doublons.
 
+Si vous n'utilisez pas Safe Access, décochez **Utiliser Safe Access** dans la même fenêtre *Configurer* : ses appels ne sont plus faits et ses entités sont supprimées.
+
 ## Cartes de tableau de bord
 
 Cinq cartes sont fournies et chargées automatiquement (aucune ressource à ajouter) :

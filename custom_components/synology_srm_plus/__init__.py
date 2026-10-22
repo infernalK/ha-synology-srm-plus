@@ -13,9 +13,10 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
-from .const import CARD_URL, DOMAIN, VERSION
+from .const import CARD_URL, CONF_SAFE_ACCESS, DOMAIN, VERSION
 from .coordinator import SrmCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -98,11 +99,22 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     return True
 
 
+def _remove_safe_access_entities(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Delete the Safe Access entities left over from when the option was on."""
+    registry = er.async_get(hass)
+    prefix = f"{entry.entry_id}_safe_"
+    for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+        if entity.unique_id.startswith(prefix):
+            registry.async_remove(entity.entity_id)
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: SrmConfigEntry) -> bool:
     """Set up Synology SRM Plus from a config entry."""
     coordinator = SrmCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
     entry.runtime_data = coordinator
+    if not entry.options.get(CONF_SAFE_ACCESS, True):
+        _remove_safe_access_entities(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

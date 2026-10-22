@@ -225,14 +225,16 @@
   "options": {
     "step": {
       "init": {
-        "title": "Presence tracking",
+        "title": "Options",
         "data": {
           "track_all": "Track every client",
-          "tracked_clients": "Track only these clients"
+          "tracked_clients": "Track only these clients",
+          "safe_access": "Use Safe Access (parental control)"
         },
         "data_description": {
           "track_all": "Creates a presence entity for every device the router knows, including new ones.",
-          "tracked_clients": "Pick the devices that get a presence entity (like the built-in integration). Ignored when every client is tracked. The full client list stays available as attributes of the connection sensors."
+          "tracked_clients": "Pick the devices that get a presence entity (like the built-in integration). Ignored when every client is tracked. The full client list stays available as attributes of the connection sensors.",
+          "safe_access": "Reads the Safe Access profiles and creates their entities. Turn it off if you do not use Safe Access: the calls are no longer made and the existing Safe Access entities are deleted."
         }
       }
     }

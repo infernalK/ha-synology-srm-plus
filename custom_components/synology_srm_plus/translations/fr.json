@@ -225,14 +225,16 @@
   "options": {
     "step": {
       "init": {
-        "title": "Suivi de présence",
+        "title": "Options",
         "data": {
           "track_all": "Suivre tous les clients",
-          "tracked_clients": "Suivre uniquement ces clients"
+          "tracked_clients": "Suivre uniquement ces clients",
+          "safe_access": "Utiliser Safe Access (contrôle parental)"
         },
         "data_description": {
           "track_all": "Crée une entité de présence pour chaque appareil connu du routeur, y compris les nouveaux.",
-          "tracked_clients": "Choisissez les appareils qui auront une entité de présence (comme l'intégration native). Ignoré si tous les clients sont suivis. La liste complète des clients reste disponible dans les attributs des capteurs de connexion."
+          "tracked_clients": "Choisissez les appareils qui auront une entité de présence (comme l'intégration native). Ignoré si tous les clients sont suivis. La liste complète des clients reste disponible dans les attributs des capteurs de connexion.",
+          "safe_access": "Lit les profils Safe Access et crée leurs entités. Désactivez-le si vous n'utilisez pas Safe Access : les appels ne sont plus faits et les entités Safe Access existantes sont supprimées."
         }
       }
     }
