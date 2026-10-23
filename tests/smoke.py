@@ -177,12 +177,17 @@ def main() -> int:
     fake._poll = 0  # noqa: SLF001
     fake._cache = {}  # noqa: SLF001
     fake._warned = set()  # noqa: SLF001
+    fake.config_entry = MagicMock(options={})
     fetched = fake._fetch()  # noqa: SLF001
     assert fake._poll == 1 and "mesh_nodes" in fetched and "client_list" in fetched, fetched.keys()
     assert fetched["traffic_live"] is None and "traffic_live" in fake._warned  # noqa: SLF001
     assert fake.client.http.call.call_count >= 10, fake.client.http.call.call_count
     fake._fetch()  # noqa: SLF001  (second poll: slow endpoints come from the cache)
     assert fake._poll == 2  # noqa: SLF001
+    # Safe Access off: its endpoints are skipped, whatever the router offers
+    fake.config_entry = MagicMock(options={"safe_access": False})
+    off = fake._fetch()  # noqa: SLF001
+    assert off["safe_profiles"] is None and off["safe_stats"] is None, off.keys()
 
     # URL credentials in error messages and in the HTTP libraries' debug logs
     leaky = Exception(
