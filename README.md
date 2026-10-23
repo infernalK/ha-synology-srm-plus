@@ -18,7 +18,7 @@ Developed and tested on an **RT2600ac (SRM 1.3.2)**. The built-in `synology_srm`
 
 | Group | Entities |
 |---|---|
-| Router | status, uptime, firmware, model, **real throughput** (rx / tx, including hardware-accelerated traffic), connected devices |
+| Router | status, uptime, firmware, model, **real throughput** (rx / tx, including hardware-accelerated traffic), connected devices; the same for each **other node** (Wi-Fi access point / repeater such as an MR2200ac): status, uptime, firmware, model, connected devices, throughput |
 | CPU / memory | CPU usage, user / system share, load average (1 / 5 / 15 min), memory and swap usage, memory details (diagnostic) |
 | Clients | online clients, **one sensor per connection** (Wi-Fi 2.4G, Wi-Fi 5G, Wired) whose attributes list every attached client, **offline clients with their last connection**, client download / upload (total and per connection) |
 | Wi-Fi | per band: channel, throughput, average signal, client count; width / power / mode as attributes |
@@ -40,6 +40,8 @@ Each connection sensor (e.g. `sensor.<router>_clients_wi_fi_5g`) has a `clients`
 If you prefer one entity per device, use the **presence tracking option** (*Configure* on the integration): pick the clients that get a presence entity, or track every client. Unselected clients are removed again, no ghost entities. It is the same idea as the built-in integration, so keep only one of the two if you do not want duplicates.
 
 If you do not use Safe Access, untick **Use Safe Access** in the same *Configure* dialog: its calls are no longer made and its entities are deleted.
+
+On the *Access control* card, `show_blocked_ips: false` hides the list of auto-blocked IP addresses and keeps only their number (handy when the router blocks tens of thousands); the list is shown by default.
 
 ## Dashboard cards
 

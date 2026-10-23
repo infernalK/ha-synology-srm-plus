@@ -18,7 +18,7 @@ Développée et testée sur un **RT2600ac (SRM 1.3.2)**. L'intégration native `
 
 | Groupe | Entités |
 |---|---|
-| Routeur | état, durée de fonctionnement, firmware, modèle, **débit réel** (rx / tx, trafic accéléré par le matériel compris), appareils connectés |
+| Routeur | état, durée de fonctionnement, firmware, modèle, **débit réel** (rx / tx, trafic accéléré par le matériel compris), appareils connectés ; idem pour chaque **autre nœud** (point d'accès Wi-Fi / répéteur comme un MR2200ac) : état, durée de fonctionnement, firmware, modèle, appareils connectés, débit |
 | CPU / mémoire | utilisation CPU, part utilisateur / système, charge moyenne (1 / 5 / 15 min), utilisation de la mémoire et du swap, détails mémoire (diagnostic) |
 | Clients | clients en ligne, **un capteur par connexion** (Wi-Fi 2,4G, Wi-Fi 5G, Filaire) dont les attributs listent chaque client rattaché, **clients hors ligne avec leur dernière connexion**, téléchargement / envoi des clients (total et par connexion) |
 | Wi-Fi | par bande : canal, débit, signal moyen, nombre de clients ; largeur / puissance / mode en attributs |
@@ -40,6 +40,8 @@ Chaque capteur de connexion (par exemple `sensor.<routeur>_clients_wi_fi_5g`) a 
 Si vous préférez une entité par appareil, utilisez l'**option de suivi de présence** (*Configurer* sur l'intégration) : choisissez les clients qui reçoivent une entité de présence, ou suivez-les tous. Les clients décochés sont supprimés, sans entités fantômes. C'est la même idée que l'intégration native : n'en gardez qu'une des deux pour éviter les doublons.
 
 Si vous n'utilisez pas Safe Access, décochez **Utiliser Safe Access** dans la même fenêtre *Configurer* : ses appels ne sont plus faits et ses entités sont supprimées.
+
+Sur la carte *Contrôle d'accès*, `show_blocked_ips: false` masque la liste des adresses IP bloquées automatiquement et ne garde que leur nombre (pratique quand le routeur en bloque des dizaines de milliers) ; la liste est affichée par défaut.
 
 ## Cartes de tableau de bord
 
