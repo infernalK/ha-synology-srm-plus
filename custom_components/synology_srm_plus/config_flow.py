@@ -110,6 +110,53 @@ class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
         """Return the options flow."""
         return SrmOptionsFlow()
 
+    async def _async_test(self, data: dict[str, Any]) -> str | None:
+        """Try to log in; return an error key, or None when it works."""
+        try:
+            await self.hass.async_add_executor_job(
+                lambda: build_client(data).core.get_system_utilization()
+            )
+        except SynologyException:
+            return "invalid_auth"
+        except Exception as err:  # noqa: BLE001
+            # No traceback: the error text can quote the URL, which holds the password.
+            _LOGGER.warning("Unable to connect to SRM: %s", safe_error(err))
+            return "cannot_connect"
+        return None
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        """Change the connection settings without removing the entry."""
+        entry = self._get_reconfigure_entry()
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            data = {**entry.data, **user_input}
+            if not user_input.get(CONF_PASSWORD):
+                data[CONF_PASSWORD] = entry.data[CONF_PASSWORD]
+            if data[CONF_HOST] != entry.data[CONF_HOST]:
+                self._async_abort_entries_match({CONF_HOST: data[CONF_HOST]})
+            if not (error := await self._async_test(data)):
+                return self.async_update_reload_and_abort(
+                    entry, title=data[CONF_HOST], data=data
+                )
+            errors["base"] = error
+
+        current = entry.data
+        schema = vol.Schema(
+            {
+                vol.Required(CONF_HOST, default=current[CONF_HOST]): str,
+                vol.Required(CONF_USERNAME, default=current[CONF_USERNAME]): str,
+                vol.Optional(CONF_PASSWORD): str,
+                vol.Required(CONF_PORT, default=current[CONF_PORT]): int,
+                vol.Required(CONF_SSL, default=current[CONF_SSL]): bool,
+                vol.Required(CONF_VERIFY_SSL, default=current[CONF_VERIFY_SSL]): bool,
+            }
+        )
+        return self.async_show_form(
+            step_id="reconfigure", data_schema=schema, errors=errors
+        )
+
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> ConfigFlowResult:
@@ -117,20 +164,11 @@ class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
         if user_input is not None:
             self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
-            try:
-                await self.hass.async_add_executor_job(
-                    lambda: build_client(user_input).core.get_system_utilization()
-                )
-            except SynologyException:
-                errors["base"] = "invalid_auth"
-            except Exception as err:  # noqa: BLE001
-                # No traceback: the error text can quote the URL, which holds the password.
-                _LOGGER.warning("Unable to connect to SRM: %s", safe_error(err))
-                errors["base"] = "cannot_connect"
-            else:
+            if not (error := await self._async_test(user_input)):
                 return self.async_create_entry(
                     title=user_input[CONF_HOST], data=user_input
                 )
+            errors["base"] = error
 
         schema = vol.Schema(
             {

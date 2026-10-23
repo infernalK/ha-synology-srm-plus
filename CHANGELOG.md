@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.10
+
+- The connection settings (host, account, password, port, HTTPS) can now be changed with *Reconfigure* on the integration, without deleting and re-adding it. Entities and history are kept. Leave the password empty to keep the current one.
+
 ## 0.5.9
 
 - *Router* card: new *Wi-Fi access points* section for the other router nodes (a repeater such as the MR2200ac): status, model, firmware, uptime, connected devices and throughput. The main router's tiles now always use node 0, whatever the order of the entities.

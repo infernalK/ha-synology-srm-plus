@@ -11,6 +11,18 @@
           "ssl": "Use HTTPS",
           "verify_ssl": "Verify SSL certificate"
         }
+      },
+      "reconfigure": {
+        "title": "Reconfigure the router",
+        "description": "Leave the password empty to keep the current one.",
+        "data": {
+          "host": "Host",
+          "username": "Username",
+          "password": "Password",
+          "port": "Port",
+          "ssl": "Use HTTPS",
+          "verify_ssl": "Verify SSL certificate"
+        }
       }
     },
     "error": {
@@ -18,7 +30,8 @@
       "cannot_connect": "Unable to connect to the router"
     },
     "abort": {
-      "already_configured": "This router is already configured"
+      "already_configured": "This router is already configured",
+      "reconfigure_successful": "Settings updated"
     }
   },
   "entity": {

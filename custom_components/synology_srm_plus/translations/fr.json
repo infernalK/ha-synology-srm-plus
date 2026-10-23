@@ -11,6 +11,18 @@
           "ssl": "Utiliser HTTPS",
           "verify_ssl": "Vérifier le certificat SSL"
         }
+      },
+      "reconfigure": {
+        "title": "Reconfigurer le routeur",
+        "description": "Laissez le mot de passe vide pour conserver l'actuel.",
+        "data": {
+          "host": "Hôte",
+          "username": "Nom d'utilisateur",
+          "password": "Mot de passe",
+          "port": "Port",
+          "ssl": "Utiliser HTTPS",
+          "verify_ssl": "Vérifier le certificat SSL"
+        }
       }
     },
     "error": {
@@ -18,7 +30,8 @@
       "cannot_connect": "Impossible de se connecter au routeur"
     },
     "abort": {
-      "already_configured": "Ce routeur est déjà configuré"
+      "already_configured": "Ce routeur est déjà configuré",
+      "reconfigure_successful": "Paramètres mis à jour"
     }
   },
   "entity": {
