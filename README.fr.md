@@ -56,7 +56,7 @@ Cinq cartes sont fournies et chargées automatiquement (aucune ressource à ajou
 *Rendu avec des données d'exemple neutres, en anglais. Dans Home Assistant, les icônes des clients sont des icônes Material Design (les émojis ici sont des substituts du banc d'essai) et les couleurs suivent votre thème. Les cartes s'affichent en français si Home Assistant est en français.*
 
 ```yaml
-type: custom:synology-srm-router-card     # jauges, trafic, bandes, ports, USB, stockage
+type: custom:synology-srm-router-card     # jauges, trafic, bandes, points d'accès Wi-Fi (répéteurs), ports, USB, stockage
 ```
 
 ```yaml

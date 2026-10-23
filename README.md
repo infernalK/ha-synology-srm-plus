@@ -56,7 +56,7 @@ Five cards are included and loaded automatically (no resource to add):
 *Rendered with neutral sample data. In Home Assistant the client icons are Material Design icons (the emoji here are stand-ins used by the preview harness) and the colors follow your theme.*
 
 ```yaml
-type: custom:synology-srm-router-card     # gauges, traffic, bands, ports, USB, storage
+type: custom:synology-srm-router-card     # gauges, traffic, bands, Wi-Fi access points (repeaters), ports, USB, storage
 ```
 
 ```yaml

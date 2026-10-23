@@ -21,7 +21,7 @@ const I18N = {
     mode: 'Mode', links: 'Links', storage: 'Storage', connection: 'Connection', ok: 'OK',
     search: 'Search a client…', all: 'All', sort: 'Sort', name: 'Name', download: 'Download',
     upload: 'Upload', nothing: 'No client', no_data: 'No Synology SRM Plus data found.', offline: 'Offline', ip: 'IP address',
-    offline_clients: 'Offline clients', last_seen: 'Last seen', ago: 'ago', router_throughput: 'Router throughput',
+    offline_clients: 'Offline clients', last_seen: 'Last seen', ago: 'ago', router_throughput: 'Router throughput', nodes: 'Wi-Fi access points', node: 'Node',
     devices: 'devices', ports: 'Ports', usb: 'USB storage', no_link: 'no link', security: 'Security', threat_prevention: 'Threat prevention', profiles: 'profiles', online: 'online', mac_filter_list: 'Wi-Fi block list', mac_filter_profiles: 'Custom MAC filters', blocked_devices: 'Blocked devices', mac_filter_networks: 'Wi-Fi with MAC filter', access_control: 'Access control', auto_block: 'Auto-block', attempts: 'attempts', per: 'in', min: 'min', no_expiry: 'no expiry', storm: 'Broadcast-storm prevention', max_pps: 'packets/s max', on: 'on', off: 'off', ip_blocked: 'Blocked IP addresses', block_list_hint: 'applies to every SSID', threats: 'Threat events',
     last24: '24 h', last7: '7 days', new_devices: 'New devices', admin_sessions: 'Admin sessions', blocked_ips: 'Blocked IPs',
     forwards: 'Port forwards', protected: 'Protected', unprotected: 'Not protected', exposed: 'Admin reachable from the Internet',
@@ -45,7 +45,7 @@ const I18N = {
     mode: 'Mode', links: 'Liens', storage: 'Stockage', connection: 'Connexion', ok: 'OK',
     search: 'Rechercher un client…', all: 'Tous', sort: 'Tri', name: 'Nom', download: 'Téléchargement',
     upload: 'Envoi', nothing: 'Aucun client', no_data: 'Aucune donnée Synology SRM Plus trouvée.', offline: 'Hors ligne', ip: 'Adresse IP',
-    offline_clients: 'Clients hors ligne', last_seen: 'Vu il y a', ago: '', router_throughput: 'Débit du routeur',
+    offline_clients: 'Clients hors ligne', last_seen: 'Vu il y a', ago: '', router_throughput: 'Débit du routeur', nodes: "Points d'accès Wi-Fi", node: 'Nœud',
     devices: 'appareils', ports: 'Ports', usb: 'Stockage USB', no_link: 'pas de lien', security: 'Sécurité', threat_prevention: 'Protection contre les menaces', profiles: 'profils', online: 'en ligne', mac_filter_list: 'Liste de blocage Wi-Fi', mac_filter_profiles: 'Filtres MAC perso', blocked_devices: 'Appareils bloqués', mac_filter_networks: 'Wi-Fi avec filtrage MAC', access_control: "Contrôle d'accès", auto_block: 'Blocage auto', attempts: 'tentatives', per: 'en', min: 'min', no_expiry: 'sans expiration', storm: 'Prévention des tempêtes de diffusion', max_pps: 'paquets/s max', on: 'activée', off: 'désactivée', ip_blocked: 'Adresses IP bloquées', block_list_hint: 'valable pour tous les SSID', threats: 'Menaces détectées',
     last24: '24 h', last7: '7 jours', new_devices: 'Nouveaux appareils', admin_sessions: "Sessions d'administration", blocked_ips: 'IP bloquées',
     forwards: 'Redirections de ports', protected: 'Protégé', unprotected: 'Non protégé', exposed: "Administration joignable depuis Internet",
@@ -264,7 +264,8 @@ class SynologySrmRouterCard extends SrmBaseCard {
   _render(found) {
     const hass = this._hass;
     const t = strings(hass);
-    const first = (key) => (found[key] || [])[0];
+    const isNode = (st, n) => String(st.attributes.node) === String(n);
+    const first = (key) => (found[key] || []).find((st) => isNode(st, 0)) || (found[key] || [])[0];
     const all = (key) => found[key] || [];
     const bandRx = mapBy(all('band_rx'), 'band');
     const bandTx = mapBy(all('band_tx'), 'band');
@@ -384,6 +385,28 @@ class SynologySrmRouterCard extends SrmBaseCard {
       })
       .join('');
 
+    // other router nodes (Wi-Fi access points such as a repeater)
+    const nodeEntity = (key, n) => (found[key] || []).find((st) => isNode(st, n) && st.attributes.band === undefined);
+    const nodeTiles = all('node_status')
+      .filter((st) => !isNode(st, 0))
+      .sort((a, b) => Number(a.attributes.node) - Number(b.attributes.node))
+      .map((st) => {
+        const n = st.attributes.node;
+        const good = st.state === 'good';
+        const nrx = nodeEntity('router_rx', n);
+        const ntx = nodeEntity('router_tx', n);
+        const ncount = nodeEntity('connected_devices', n);
+        const nup = nodeEntity('uptime', n);
+        const lines = [
+          [nodeEntity('model', n), nodeEntity('firmware', n)].filter(Boolean).map((x) => x.state).join(' · '),
+          nup && `${t.uptime} ${fmtDuration(nup)}`,
+          ncount && `${ncount.state} ${t.devices}`,
+          nrx || ntx ? `↓ ${fmtRate(rateOf(nrx))} · ↑ ${fmtRate(rateOf(ntx))}` : '',
+        ].filter(Boolean);
+        return `<div class="tile" data-entity="${esc(st.entity_id)}"><div class="k">${esc(st.attributes.name || `${t.node} ${n}`)}</div><div class="v" style="color:${good ? 'inherit' : 'var(--error-color,#db4437)'}">${esc(good ? t.ok : st.state)}</div><div class="s">${lines.map(esc).join('<br>')}</div></div>`;
+      })
+      .join('');
+
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <ha-card>
         <div class="head">
@@ -395,6 +418,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
         ${load.length ? `<div class="sub" style="text-align:center;margin-top:4px" data-entity="${esc(load[0].entity_id)}">${esc(t.load)} ${load.map((s) => Number(s.state).toFixed(2)).join(' · ')}</div>` : ''}
         ${routerTile || trafficTiles ? `<h3>${esc(t.traffic)}</h3><div class="grid">${routerTile}${trafficTiles}</div>` : ''}
         ${wifiTiles ? `<h3>${esc(t.wifi)}</h3><div class="grid">${wifiTiles}</div>` : ''}
+        ${nodeTiles ? `<h3>${esc(t.nodes)}</h3><div class="grid">${nodeTiles}</div>` : ''}
         <h3>${esc(t.network)}</h3>
         <div class="grid">${tile(t.external, ext4)}${tile('IPv6', ext6)}${tile(t.mode, mode)}${tile(t.offline_clients, first('clients_offline'))}${links}</div>${portSpeeds ? `<h3>${esc(t.ports)}</h3><div class="grid">${portSpeeds}</div>` : ''}
         ${usb || storage ? `<h3>${esc(t.storage)}</h3><div class="grid">${usb}${storage}</div>` : ''}

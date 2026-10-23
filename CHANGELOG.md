@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.9
+
+- *Router* card: new *Wi-Fi access points* section for the other router nodes (a repeater such as the MR2200ac): status, model, firmware, uptime, connected devices and throughput. The main router's tiles now always use node 0, whatever the order of the entities.
+
 ## 0.5.8
 
 - *Access control* card: new option `show_blocked_ips: false` hides the list of blocked IP addresses and keeps only their number (useful when the router blocks tens of thousands). The list is still shown by default.
