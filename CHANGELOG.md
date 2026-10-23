@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.8
+
+- *Access control* card: new option `show_blocked_ips: false` hides the list of blocked IP addresses and keeps only their number (useful when the router blocks tens of thousands). The list is still shown by default.
+
 ## 0.5.7
 
 - New option **Use Safe Access** (*Configure* on the integration, on by default). Turned off, the Safe Access calls are no longer made and the Safe Access entities are deleted, for routers that do not use parental control.
