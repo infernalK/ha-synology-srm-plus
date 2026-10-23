@@ -704,7 +704,7 @@ class SynologySrmAccessCard extends SrmEntityCard {
     const rows =
       devs(blockList).map((d) => row(esc(d.name || d.mac), `${esc(d.mac || '')} · ${esc(t.mac_filter_list)}`)).join('') +
       devs(first('blocked_devices')).map((d) => row(esc(d.name || d.mac), `${esc(d.ip || d.mac || '')} · ${esc(t.blocked_devices)}`)).join('');
-    const addresses = Array.isArray(a.addresses) ? a.addresses : [];
+    const addresses = this._config.show_blocked_ips !== false && Array.isArray(a.addresses) ? a.addresses : [];
     const addressRows = addresses
       .map((x) => row(esc(typeof x === 'string' ? x : x.ip || x.address || JSON.stringify(x)), esc(t.ip_blocked)))
       .join('');

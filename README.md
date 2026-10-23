@@ -73,6 +73,7 @@ type: custom:synology-srm-threat-card     # threat prevention: events, new devic
 
 ```yaml
 type: custom:synology-srm-access-card     # access control: blocked IPs (auto-block), Wi-Fi block list, MAC filters, blocked devices
+show_blocked_ips: false                   # optional: hide the list of blocked IPs and keep only their number (default: true)
 ```
 
 ```yaml

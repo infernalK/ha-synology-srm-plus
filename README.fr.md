@@ -73,6 +73,7 @@ type: custom:synology-srm-threat-card     # protection contre les menaces : év�
 
 ```yaml
 type: custom:synology-srm-access-card     # contrôle d'accès : IP bloquées (blocage auto), liste de blocage Wi-Fi, filtres MAC, appareils bloqués
+show_blocked_ips: false                   # facultatif : masque la liste des IP bloquées, garde seulement leur nombre (défaut : true)
 ```
 
 ```yaml
