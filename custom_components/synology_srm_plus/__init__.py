@@ -7,6 +7,7 @@ from pathlib import Path
 
 import voluptuous as vol
 
+from homeassistant.components import persistent_notification
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
@@ -31,12 +32,15 @@ EXPLORE_SCHEMA = vol.Schema({vol.Optional("filter"): cv.string})
 type SrmConfigEntry = ConfigEntry[SrmCoordinator]
 
 
-async def _async_register_card_resource(hass: HomeAssistant, url: str) -> bool:
+async def _async_register_card_resource(
+    hass: HomeAssistant, url: str
+) -> tuple[bool, bool]:
     """Register the card as a Lovelace resource (storage mode dashboards).
 
     A Lovelace resource is loaded before the dashboard renders, which avoids the
     "Custom element doesn't exist" errors that a late-loaded script causes.
-    Returns False when resources cannot be managed (YAML mode).
+    Returns (registered, created): registered is False when resources cannot be
+    managed (YAML mode), created is True the first time the resource is added.
     """
     try:
         from homeassistant.components.lovelace.const import LOVELACE_DATA  # noqa: PLC0415
@@ -47,7 +51,7 @@ async def _async_register_card_resource(hass: HomeAssistant, url: str) -> bool:
         lovelace = hass.data.get(LOVELACE_DATA)
         resources = getattr(lovelace, "resources", None)
         if not isinstance(resources, ResourceStorageCollection):
-            return False
+            return False, False
         if not resources.loaded:
             await resources.async_load()
         for item in resources.async_items():
@@ -56,12 +60,34 @@ async def _async_register_card_resource(hass: HomeAssistant, url: str) -> bool:
                     await resources.async_update_item(
                         item["id"], {"res_type": "module", "url": url}
                     )
-                return True
+                return True, False
         await resources.async_create_item({"res_type": "module", "url": url})
     except Exception:  # noqa: BLE001 - frontend internals differ between versions
         _LOGGER.debug("Could not register the card as a Lovelace resource", exc_info=True)
-        return False
-    return True
+        return False, False
+    return True, True
+
+
+def _async_notify_reload(hass: HomeAssistant) -> None:
+    """Invite the user to reload without cache once, after the first install."""
+    if hass.config.language.startswith("fr"):
+        title = "Synology SRM Plus : cartes installées"
+        message = (
+            "Les cartes du tableau de bord viennent d'être ajoutées. Rechargez la "
+            "page **sans cache** (Ctrl+Maj+R, ou Cmd+Maj+R sur Mac ; dans "
+            "l'application mobile, *Paramètres → Application → Réinitialiser le "
+            "cache du frontend*) pour les voir apparaître."
+        )
+    else:
+        title = "Synology SRM Plus: cards installed"
+        message = (
+            "The dashboard cards have just been added. Reload the page **without "
+            "cache** (Ctrl+Shift+R, or Cmd+Shift+R on Mac; in the mobile app, "
+            "*Settings → Companion app → Reset frontend cache*) for them to show up."
+        )
+    persistent_notification.async_create(
+        hass, message, title=title, notification_id=f"{DOMAIN}_reload_cards"
+    )
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
@@ -71,8 +97,11 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
         [StaticPathConfig(CARD_URL, str(card), cache_headers=False)]
     )
     url = f"{CARD_URL}?v={VERSION}"
-    if not await _async_register_card_resource(hass, url):
+    registered, created = await _async_register_card_resource(hass, url)
+    if not registered:
         add_extra_js_url(hass, url)
+    elif created:
+        _async_notify_reload(hass)
 
     running: set[str] = set()
 

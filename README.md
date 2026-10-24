@@ -82,6 +82,8 @@ show_blocked_ips: false                   # optional: hide the list of blocked I
 type: custom:synology-srm-safeaccess-card # Safe Access (parental control): time online, status, schedules per profile
 ```
 
+After the first install, reload the page **without cache** (Ctrl+Shift+R, or Cmd+Shift+R on Mac; in the mobile app, *Settings → Companion app → Reset frontend cache*) so the cards are picked up. The integration shows a notification to remind you.
+
 The cards find the integration's entities on their own; add `device_id: <id>` if you have several routers. In the clients card, click a client to expand all its details, double-click to open its connection sensor. A ready-made dashboard is in [dashboards/synology-srm.yaml](dashboards/synology-srm.yaml). The cards follow your Home Assistant language (English or French).
 
 ## Install

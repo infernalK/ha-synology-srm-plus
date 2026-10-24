@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.12
+
+- After the first install, a notification invites you to reload the page without cache so the dashboard cards show up (also documented in the README).
+
 ## 0.5.11
 
 - Documentation: the install section now starts with searching *Synology SRM Plus* in HACS, now that the integration is in the default catalog.

@@ -82,6 +82,8 @@ show_blocked_ips: false                   # facultatif : masque la liste des IP 
 type: custom:synology-srm-safeaccess-card # Safe Access (contrôle parental) : temps sur internet, état, plages horaires par profil
 ```
 
+Après la première installation, rechargez la page **sans cache** (Ctrl+Maj+R, ou Cmd+Maj+R sur Mac ; dans l'application mobile, *Paramètres → Application → Réinitialiser le cache du frontend*) pour que les cartes soient prises en compte. L'intégration affiche une notification pour vous le rappeler.
+
 Les cartes retrouvent seules les entités de l'intégration ; ajoutez `device_id: <id>` si vous avez plusieurs routeurs. Dans la carte des clients, un clic déplie tous les détails d'un client, un double-clic ouvre son capteur de connexion. Un tableau de bord prêt à coller se trouve dans [dashboards/synology-srm.yaml](dashboards/synology-srm.yaml).
 
 ## Installation
