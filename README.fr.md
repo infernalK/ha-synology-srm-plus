@@ -86,10 +86,10 @@ Les cartes retrouvent seules les entités de l'intégration ; ajoutez `device_id
 
 ## Installation
 
-### HACS (dépôt personnalisé)
+### HACS
 
-1. HACS → ⋮ → *Dépôts personnalisés* → ajoutez `https://github.com/infernalK/ha-synology-srm-plus`, catégorie **Intégration** (ou utilisez le bouton en haut de cette page).
-2. Installez **Synology SRM Plus** et redémarrez Home Assistant.
+1. Dans HACS, recherchez **Synology SRM Plus** et téléchargez-le (ou utilisez le bouton en haut de cette page).
+2. Redémarrez Home Assistant.
 3. *Paramètres → Appareils et services → Ajouter une intégration → Synology SRM Plus*.
 
 ### Compte du routeur
