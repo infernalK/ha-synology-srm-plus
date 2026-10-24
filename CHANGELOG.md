@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.11
+
+- Documentation: the install section now starts with searching *Synology SRM Plus* in HACS, now that the integration is in the default catalog.
+
 ## 0.5.10
 
 - The connection settings (host, account, password, port, HTTPS) can now be changed with *Reconfigure* on the integration, without deleting and re-adding it. Entities and history are kept. Leave the password empty to keep the current one.
