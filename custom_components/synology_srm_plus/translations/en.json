@@ -262,6 +262,10 @@
           "description": "Only explore APIs whose name contains this text (for example Wifi or Firewall)."
         }
       }
+    },
+    "debug_report": {
+      "name": "Debug report",
+      "description": "Returns a short text report (versions, routers, ports, external address, threat statistics, storage, unknown entities) with no names, addresses or MAC addresses. Run it in Developer tools > Actions and paste the result when asking for help."
     }
   }
 }

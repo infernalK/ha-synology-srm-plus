@@ -5,3 +5,5 @@ explore_api:
       example: Wifi
       selector:
         text:
+
+debug_report: {}

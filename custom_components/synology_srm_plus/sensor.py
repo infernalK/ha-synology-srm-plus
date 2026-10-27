@@ -51,6 +51,8 @@ def _num(value: Any, scale: float = 1) -> float | int | None:
 def _external(d: dict[str, Any], field: str) -> Any:
     """External address: the WAN entry, else any entry that has one."""
     items = d.get("external_ip")
+    if isinstance(items, dict):  # some routers wrap the list: {"next_update_time": ..., "records": [...]}
+        items = items.get("records")
     wan = _find(items, type="WAN") or {}
     if wan.get(field):
         return wan[field]

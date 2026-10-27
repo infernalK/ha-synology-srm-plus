@@ -12,7 +12,7 @@ from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
@@ -27,6 +27,7 @@ PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.DEVICE_TRACKER]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 SERVICE_EXPLORE_API = "explore_api"
+SERVICE_DEBUG_REPORT = "debug_report"
 EXPLORE_SCHEMA = vol.Schema({vol.Optional("filter"): cv.string})
 
 type SrmConfigEntry = ConfigEntry[SrmCoordinator]
@@ -127,8 +128,21 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
             hass.async_create_background_task(_run(), f"{DOMAIN}_explore")
 
+    async def _async_report(call: ServiceCall) -> dict[str, str]:
+        """Return a short text report (no names, addresses or MACs) to paste when asking for help."""
+        from .diagnostics import async_build_report  # noqa: PLC0415 - avoids an import cycle
+
+        reports = [
+            await async_build_report(hass, entry)
+            for entry in hass.config_entries.async_loaded_entries(DOMAIN)
+        ]
+        return {"report": (chr(10) * 2).join(reports)}
+
     hass.services.async_register(
         DOMAIN, SERVICE_EXPLORE_API, _async_explore, schema=EXPLORE_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_DEBUG_REPORT, _async_report, supports_response=SupportsResponse.ONLY
     )
     return True
 

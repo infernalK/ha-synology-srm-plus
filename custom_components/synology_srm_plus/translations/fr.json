@@ -262,6 +262,10 @@
           "description": "N'explorer que les API dont le nom contient ce texte (par exemple Wifi ou Firewall)."
         }
       }
+    },
+    "debug_report": {
+      "name": "Rapport de débogage",
+      "description": "Renvoie un court rapport texte (versions, routeurs, ports, adresse externe, statistiques de menaces, stockage, entités inconnues) sans noms, adresses ni adresses MAC. À lancer dans Outils de développement > Actions, puis à coller quand vous demandez de l'aide."
     }
   }
 }
