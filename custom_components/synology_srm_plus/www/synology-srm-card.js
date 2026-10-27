@@ -403,14 +403,25 @@ class SynologySrmRouterCard extends SrmBaseCard {
     const routerTile = rrx || rtx
       ? `<div class="tile" data-entity="${esc((rrx || rtx).entity_id)}"><div class="k">${esc(t.router_throughput)}${conn ? ` · ${esc(conn.state)} ${t.devices}` : ''}</div><div class="v">rx ${fmtRate(rateOf(rrx))}</div><div class="v">tx ${fmtRate(rateOf(rtx))}</div></div>`
       : '';
-    // ports of one router node (the main router here, the others in their own tile)
+    // ports, grouped per router node (one sub-heading per router when there are several)
     const nodePorts = (n) => all('port_speed')
       .filter((st) => isNode(st, n))
       .sort((a, b) => (a.attributes.port === 'WAN' ? '' : String(a.attributes.port)).localeCompare(b.attributes.port === 'WAN' ? '' : String(b.attributes.port)));
-    const portSpeeds = nodePorts(0)
-      .map((st) => {
-        const linked = st.attributes.link !== false && Number(st.state) > 0;
-        return `<div class="tile" data-entity="${esc(st.entity_id)}" style="${linked ? '' : 'opacity:.55'}"><div class="k">${esc(st.attributes.port)}</div><div class="v">${linked ? esc(fmtState(hass, st)) : esc(t.no_link)}</div></div>`;
+    const portNodes = [...new Set(all('port_speed').map((st) => String(st.attributes.node)))].sort((a, b) => Number(a) - Number(b));
+    const nodeName = (n) => {
+      const ns = all('node_status').find((st) => isNode(st, n));
+      return (ns && ns.attributes.name) || (String(n) === '0' ? deviceName || t.router : `${t.node} ${n}`);
+    };
+    const portSpeeds = portNodes
+      .map((n) => {
+        const tiles = nodePorts(n)
+          .map((st) => {
+            const linked = st.attributes.link !== false && Number(st.state) > 0;
+            return `<div class="tile" data-entity="${esc(st.entity_id)}" style="${linked ? '' : 'opacity:.55'}"><div class="k">${esc(st.attributes.port)}</div><div class="v">${linked ? esc(fmtState(hass, st)) : esc(t.no_link)}</div></div>`;
+          })
+          .join('');
+        const head = portNodes.length > 1 ? `<div class="sub" style="margin:8px 0 4px;font-weight:600">${esc(nodeName(n))}</div>` : '';
+        return tiles ? `${head}<div class="grid">${tiles}</div>` : '';
       })
       .join('');
     const usbUsed = mapBy(all('usb_used'), 'volume');
@@ -442,9 +453,6 @@ class SynologySrmRouterCard extends SrmBaseCard {
           nup && `${t.uptime} ${fmtDuration(nup)}`,
           ncount && `${ncount.state} ${t.devices}`,
           nrx || ntx ? `↓ ${fmtRate(rateOf(nrx))} · ↑ ${fmtRate(rateOf(ntx))}` : '',
-          nodePorts(n)
-            .map((p) => `${p.attributes.port} ${p.attributes.link !== false && Number(p.state) > 0 ? fmtState(hass, p) : '–'}`)
-            .join(' · '),
         ].filter(Boolean);
         return `<div class="tile" data-entity="${esc(st.entity_id)}"><div class="k">${esc(st.attributes.name || `${t.node} ${n}`)}</div><div class="v" style="color:${good ? 'inherit' : 'var(--error-color,#db4437)'}">${esc(good ? t.ok : st.state)}</div><div class="s">${lines.map(esc).join('<br>')}</div></div>`;
       })
@@ -463,7 +471,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
         ${wifiTiles ? `<h3>${esc(t.wifi)}</h3><div class="grid">${wifiTiles}</div>` : ''}
         ${nodeTiles ? `<h3>${esc(t.nodes)}</h3><div class="grid">${nodeTiles}</div>` : ''}
         <h3>${esc(t.network)}</h3>
-        <div class="grid">${tile(t.external, ext4)}${tile('IPv6', ext6)}${tile(t.mode, mode)}${tile(t.offline_clients, first('clients_offline'))}${links}</div>${portSpeeds ? `<h3>${esc(t.ports)}</h3><div class="grid">${portSpeeds}</div>` : ''}
+        <div class="grid">${tile(t.external, ext4)}${tile('IPv6', ext6)}${tile(t.mode, mode)}${tile(t.offline_clients, first('clients_offline'))}${links}</div>${portSpeeds ? `<h3>${esc(t.ports)}</h3>${portSpeeds}` : ''}
         ${usb || storage ? `<h3>${esc(t.storage)}</h3><div class="grid">${usb}${storage}</div>` : ''}
         <div class="sub" style="text-align:right;opacity:.5;font-size:.7em;margin-top:8px">cards v${CARDS_VERSION} · ${all('node_status').length} nodes · ${all('port_speed').length} ports</div>
       </ha-card>`;
