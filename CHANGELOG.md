@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.23
+
+- New action `synology_srm_plus.check_parallel` (Developer tools > Actions): a read-only test, about ten seconds long, that asks the router three different questions at the same time, with and without the fix of 0.5.21, and counts the answers that belong to another question. On a RT2600ac, the library alone returned about one answer in ten that was another call's answer; with the fix, none. Paste its result when asking for help.
+
 ## 0.5.22
 
 - Wi-Fi networks: new sensors per Wi-Fi network (the SRM profile, for example *IOT*): number of clients (with the bands and SSIDs in use) and download/upload traffic.
