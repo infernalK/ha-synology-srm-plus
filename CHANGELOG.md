@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.15
+
+- Wired clients now have a download / upload rate (it was always 0): SRM gives none for them in the device list, so it is read from the router's live traffic, which only lists the devices that moved data during the last second.
+
 ## 0.5.14
 
 - *Explore API* service (filter `Traffic`): also logs the live traffic of each client by name.

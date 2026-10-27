@@ -593,7 +593,9 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if outcomes and failures == len(outcomes):
             raise UpdateFailed("All SRM calls failed")
         self._poll += 1
-        normalized = normalize_clients(results.get("clients"), results.get("wifi_devices"))
+        normalized = normalize_clients(
+            results.get("clients"), results.get("wifi_devices"), results.get("traffic_live")
+        )
         results["client_list"], results["offline_list"] = normalized or (None, None)
         self._annotate_safe_profiles(results)
         _LOGGER.debug(

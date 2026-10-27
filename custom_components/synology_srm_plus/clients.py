@@ -51,15 +51,27 @@ def group_label(group: str) -> str:
     return f"Wi-Fi {group}"
 
 
+def _live_rates(live: Any) -> dict[str, tuple[Any, Any]] | None:
+    """Return (download, upload) per MAC from the NGFW live traffic, or None."""
+    if not isinstance(live, list):
+        return None
+    return {
+        str(row["deviceID"]).lower(): (row.get("download"), row.get("upload"))
+        for row in live
+        if isinstance(row, dict) and row.get("deviceID")
+    }
+
+
 def normalize_clients(
-    clients: Any, wifi_devices: Any
+    clients: Any, wifi_devices: Any, live_traffic: Any = None
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]] | None:
-    """Merge NSM.Device and Wifi.Device payloads into clean online / offline lists.
+    """Merge NSM.Device, Wifi.Device and live traffic into online / offline lists.
 
     Returns None when the router does not offer the client list.
     """
     if not isinstance(clients, list):
         return None
+    live = _live_rates(live_traffic)
 
     wifi_by_mac: dict[str, dict[str, Any]] = {}
     device_list = (
@@ -89,6 +101,13 @@ def normalize_clients(
                 item["wifi_bytes_rx"] = wifi.get("bytes_rx")
                 item["wifi_bytes_tx"] = wifi.get("bytes_tx")
             item["group"] = client_group(raw)
+            # SRM gives no rate in the device list for wired clients (hardware
+            # forwarding): the live traffic list has it, and only names the devices
+            # that moved data during the last second.
+            if live is not None and item.get("download") is None:
+                item["download"], item["upload"] = (
+                    v or 0 for v in live.get(mac, (0, 0))
+                )
         else:
             item["group"] = GROUP_OFFLINE
             # Rates and signal are meaningless once a device is gone.
