@@ -16,7 +16,7 @@ const PLATFORM = 'synology_srm_plus';
 const I18N = {
   en: {
     router: 'Router', uptime: 'Uptime', cpu: 'CPU', memory: 'Memory', swap: 'Swap', load: 'Load',
-    traffic: 'Client traffic', traffic_networks: 'Traffic per Wi-Fi network', total: 'Total', wired: 'Wired', clients: 'clients', client: 'client',
+    connection: 'Connection', wifi_network: 'Wi-Fi network', traffic: 'Client traffic', traffic_networks: 'Traffic per Wi-Fi network', total: 'Total', wired: 'Wired', clients: 'clients', client: 'client',
     wifi: 'Wi-Fi', channel: 'Channel', signal: 'Signal', network: 'Network', external: 'External IP',
     mode: 'Mode', links: 'Links', storage: 'Storage', connection: 'Connection', ok: 'OK',
     search: 'Search a client…', all: 'All', sort: 'Sort', name: 'Name', download: 'Download',
@@ -40,7 +40,7 @@ const I18N = {
   },
   fr: {
     router: 'Routeur', uptime: 'En ligne depuis', cpu: 'CPU', memory: 'Mémoire', swap: 'Swap', load: 'Charge',
-    traffic: 'Trafic des clients', traffic_networks: 'Trafic par réseau Wi-Fi', total: 'Total', wired: 'Filaire', clients: 'clients', client: 'client',
+    connection: 'Connexion', wifi_network: 'Réseau Wi-Fi', traffic: 'Trafic des clients', traffic_networks: 'Trafic par réseau Wi-Fi', total: 'Total', wired: 'Filaire', clients: 'clients', client: 'client',
     wifi: 'Wi-Fi', channel: 'Canal', signal: 'Signal', network: 'Réseau', external: 'IP externe',
     mode: 'Mode', links: 'Liens', storage: 'Stockage', connection: 'Connexion', ok: 'OK',
     search: 'Rechercher un client…', all: 'Tous', sort: 'Tri', name: 'Nom', download: 'Téléchargement',
@@ -185,6 +185,7 @@ function integrationDevices(hass, deviceId) {
 }
 
 const STYLE = `
+  .chiplabel { opacity: .6; font-size: .75em; align-self: center; margin-right: 2px; }
   :host { display: block; min-width: 0; }
   ha-card { padding: 16px; min-width: 0; box-sizing: border-box; overflow: hidden; }
   .head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
@@ -508,6 +509,7 @@ class SynologySrmClientsCard extends SrmBaseCard {
   setConfig(config) {
     super.setConfig(config);
     this._filter = this._filter || 'all';
+    this._network = this._network || 'all';
     this._search = this._search || '';
     this._sort = config.sort_by || this._sort || 'download';
     this._open = this._open || new Set();
@@ -551,7 +553,7 @@ class SynologySrmClientsCard extends SrmBaseCard {
       <ha-card>
         <div class="head"><ha-icon icon="mdi:lan-connect"></ha-icon><div><div class="title" id="title"></div><div class="sub" id="sub"></div></div></div>
         <div class="controls">
-          <div class="chips" id="chips"></div>
+          <div id="chiprows"></div>
           <input class="search" id="search" type="search" placeholder="${esc(t.search)}" value="${esc(this._search)}" />
           <select class="sort" id="sort" title="${esc(t.sort)}">
             <option value="download">↓ ${esc(t.download)}</option><option value="upload">↑ ${esc(t.upload)}</option>
@@ -573,7 +575,11 @@ class SynologySrmClientsCard extends SrmBaseCard {
     root.addEventListener('click', (e) => {
       const chip = e.target.closest('.chip');
       if (chip) {
-        this._filter = chip.dataset.group;
+        if (chip.dataset.network !== undefined) this._network = chip.dataset.network;
+        else {
+          this._filter = chip.dataset.group;
+          if (this._filter === 'Offline') this._network = 'all'; // offline clients carry no network
+        }
         this._refresh();
         return;
       }
@@ -610,22 +616,39 @@ class SynologySrmClientsCard extends SrmBaseCard {
     const hasOffline = states.some((s) => s.attributes.group === 'Offline');
     const labelOf = (g) => (g === 'Wired' ? t.wired : g === 'Offline' ? t.offline : `${t.wifi} ${g}`);
     const groupNames = [...new Set(states.filter((s) => s.attributes.group !== 'Offline').map((s) => s.attributes.group))].sort();
+    // filter_by: both (default) | connection | network
+    const filterBy = this._config.filter_by;
+    const showConnection = filterBy !== 'network';
+    const showNetwork = filterBy !== 'connection';
+    const networkNames = [...new Set(clients.map((c) => c.wifi_profile).filter(Boolean))].sort();
     const filters = ['all', ...groupNames, ...(hasOffline ? ['Offline'] : [])];
-    if (!filters.includes(this._filter)) this._filter = 'all';
+    if (!showConnection || !filters.includes(this._filter)) this._filter = 'all';
+    if (!showNetwork || !networkNames.includes(this._network)) this._network = 'all';
+    const inConn = (c, g) => g === 'all' || c.group === g;
+    const inNet = (c, n) => n === 'all' || c.wifi_profile === n;
 
     const sum = (field) => clients.reduce((a, c) => a + (Number(c[field]) || 0), 0);
     root.getElementById('title').textContent = this._config.title || 'Synology SRM';
     root.getElementById('sub').innerHTML =
       `${clients.length} ${clients.length === 1 ? t.client : t.clients} · <span class="down">↓ ${fmtRate(sum('download'))}</span> · <span class="up">↑ ${fmtRate(sum('upload'))}</span>`;
 
-    const count = (g) => (g === 'Offline' ? offlineClients.length : clients.filter((c) => g === 'all' || c.group === g).length);
-    root.getElementById('chips').innerHTML = filters
-      .map((g) => `<button class="chip ${this._filter === g ? 'on' : ''}" data-group="${esc(g)}">${esc(g === 'all' ? t.all : labelOf(g))} ${count(g)}</button>`)
-      .join('');
+    const count = (g) => (g === 'Offline' ? offlineClients.length : clients.filter((c) => inConn(c, g) && inNet(c, this._network)).length);
+    const netCount = (n) => (this._filter === 'Offline' ? 0 : clients.filter((c) => inNet(c, n) && inConn(c, this._filter)).length);
+    const connectionRow = showConnection
+      ? `<div class="chips"><span class="chiplabel">${esc(t.connection)}</span>${filters
+          .map((g) => `<button class="chip ${this._filter === g ? 'on' : ''}" data-group="${esc(g)}">${esc(g === 'all' ? t.all : labelOf(g))} ${count(g)}</button>`)
+          .join('')}</div>`
+      : '';
+    const networkRow = showNetwork && networkNames.length
+      ? `<div class="chips"><span class="chiplabel">${esc(t.wifi_network)}</span>${['all', ...networkNames]
+          .map((n) => `<button class="chip ${this._network === n ? 'on' : ''}" data-network="${esc(n)}">${esc(n === 'all' ? t.all : n)} ${netCount(n)}</button>`)
+          .join('')}</div>`
+      : '';
+    root.getElementById('chiprows').innerHTML = connectionRow + networkRow;
 
     const q = this._search.trim().toLowerCase();
-    const pool = this._filter === 'Offline' ? offlineClients : clients.filter((c) => this._filter === 'all' || c.group === this._filter);
-    let rows = pool.filter((c) => !q || [c.name, c.ip, c.mac, c.ssid, c.device_type, c.ipv6].some((v) => String(v ?? '').toLowerCase().includes(q)));
+    const pool = this._filter === 'Offline' ? offlineClients : clients.filter((c) => inConn(c, this._filter) && inNet(c, this._network));
+    let rows = pool.filter((c) => !q || [c.name, c.ip, c.mac, c.ssid, c.wifi_profile, c.device_type, c.ipv6].some((v) => String(v ?? '').toLowerCase().includes(q)));
     const key = this._sort;
     const ipKey = (c) => (c.ip ? String(c.ip).split('.').reduce((a, p) => a * 256 + Number(p), 0) : Infinity);
     const byName = (a, b) => String(a.name).localeCompare(String(b.name));
@@ -883,13 +906,13 @@ const EDITOR_LABELS = {
   en: {
     title: 'Title', device_id: 'Router (optional, if you have several)', traffic_by: 'Client traffic per',
     both: 'Wi-Fi band and Wi-Fi network', bands: 'Wi-Fi band', networks: 'Wi-Fi network',
-    sort_by: 'Sort by', groups: 'Show only these connections', max_height: 'Maximum height (px)',
+    filter_by: 'Filters shown', f_both: 'Connection and Wi-Fi network', f_connection: 'Connection (band, wired)', f_network: 'Wi-Fi network', sort_by: 'Sort by', groups: 'Show only these connections', max_height: 'Maximum height (px)',
     show_blocked_ips: 'Show the list of blocked IPs', download: 'Download', upload: 'Upload', signal: 'Signal', name: 'Name', last_seen: 'Last seen',
   },
   fr: {
     title: 'Titre', device_id: 'Routeur (facultatif, si vous en avez plusieurs)', traffic_by: 'Trafic des clients par',
     both: 'Bande Wi-Fi et réseau Wi-Fi', bands: 'Bande Wi-Fi', networks: 'Réseau Wi-Fi',
-    sort_by: 'Trier par', groups: 'Afficher seulement ces connexions', max_height: 'Hauteur maximale (px)',
+    filter_by: 'Filtres affichés', f_both: 'Connexion et réseau Wi-Fi', f_connection: 'Connexion (bande, filaire)', f_network: 'Réseau Wi-Fi', sort_by: 'Trier par', groups: 'Afficher seulement ces connexions', max_height: 'Hauteur maximale (px)',
     show_blocked_ips: 'Afficher la liste des IP bloquées', download: 'Téléchargement', upload: 'Envoi', signal: 'Signal', name: 'Nom', last_seen: 'Dernière connexion',
   },
 };
@@ -901,6 +924,7 @@ function editorSchema(kind, L) {
   if (kind === 'clients') {
     return [
       ...base,
+      choice('filter_by', [['both', L.f_both], ['connection', L.f_connection], ['network', L.f_network]]),
       choice('sort_by', [['download', L.download], ['upload', L.upload], ['signal', L.signal], ['ip', 'IP'], ['name', L.name], ['last_seen', L.last_seen]]),
       { name: 'groups', selector: { select: { multiple: true, custom_value: true, options: ['Wired', 'Offline', '2.4G', '5G', '5G-1', '5G-2'] } } },
       { name: 'max_height', selector: { number: { min: 100, max: 2000, step: 50, mode: 'box' } } },

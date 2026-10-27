@@ -67,6 +67,7 @@ type: custom:synology-srm-clients-card    # every client, offline ones included
 title: Clients
 sort_by: download        # download | upload | signal | ip | name | last_seen
 groups: [5G, 2.4G]       # optional filter (also: Wired, Offline)
+filter_by: both          # optional: filter chips per connection (band, wired), per Wi-Fi network such as IOT, or both (default)
 max_height: 500          # optional, px
 ```
 
