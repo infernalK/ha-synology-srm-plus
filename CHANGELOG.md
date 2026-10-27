@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.19
+
+- Router card: with several router nodes (mesh), the ports of the main router are no longer mixed with those of the others; each other node shows its own ports in its tile. Tiles without a value (for example the external IP of a secondary router) are hidden.
+
 ## 0.5.18
 
 - Clients card: the cable icon of wired clients is now coloured like the Wi-Fi signal bars (green from 1 Gbit/s, yellow at 100 Mbit/s, red below).

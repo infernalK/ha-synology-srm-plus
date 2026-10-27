@@ -303,7 +303,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
     const bandRx = mapBy(all('band_rx'), 'band');
     const bandTx = mapBy(all('band_tx'), 'band');
     const tile = (label, stateObj, extra = '') =>
-      stateObj
+      known(stateObj)
         ? `<div class="tile" data-entity="${esc(stateObj.entity_id)}"><div class="k">${esc(label)}</div><div class="v">${esc(fmtState(hass, stateObj))}</div>${extra ? `<div class="s">${extra}</div>` : ''}</div>`
         : '';
     const gauge = (label, stateObj, warn, bad) => {
@@ -398,8 +398,11 @@ class SynologySrmRouterCard extends SrmBaseCard {
     const routerTile = rrx || rtx
       ? `<div class="tile" data-entity="${esc((rrx || rtx).entity_id)}"><div class="k">${esc(t.router_throughput)}${conn ? ` · ${esc(conn.state)} ${t.devices}` : ''}</div><div class="v">rx ${fmtRate(rateOf(rrx))}</div><div class="v">tx ${fmtRate(rateOf(rtx))}</div></div>`
       : '';
-    const portSpeeds = all('port_speed')
-      .sort((a, b) => (a.attributes.port === 'WAN' ? '' : String(a.attributes.port)).localeCompare(b.attributes.port === 'WAN' ? '' : String(b.attributes.port)))
+    // ports of one router node (the main router here, the others in their own tile)
+    const nodePorts = (n) => all('port_speed')
+      .filter((st) => isNode(st, n))
+      .sort((a, b) => (a.attributes.port === 'WAN' ? '' : String(a.attributes.port)).localeCompare(b.attributes.port === 'WAN' ? '' : String(b.attributes.port)));
+    const portSpeeds = nodePorts(0)
       .map((st) => {
         const linked = st.attributes.link !== false && Number(st.state) > 0;
         return `<div class="tile" data-entity="${esc(st.entity_id)}" style="${linked ? '' : 'opacity:.55'}"><div class="k">${esc(st.attributes.port)}</div><div class="v">${linked ? esc(fmtState(hass, st)) : esc(t.no_link)}</div></div>`;
@@ -434,6 +437,9 @@ class SynologySrmRouterCard extends SrmBaseCard {
           nup && `${t.uptime} ${fmtDuration(nup)}`,
           ncount && `${ncount.state} ${t.devices}`,
           nrx || ntx ? `↓ ${fmtRate(rateOf(nrx))} · ↑ ${fmtRate(rateOf(ntx))}` : '',
+          nodePorts(n)
+            .map((p) => `${p.attributes.port} ${p.attributes.link !== false && Number(p.state) > 0 ? fmtState(hass, p) : '–'}`)
+            .join(' · '),
         ].filter(Boolean);
         return `<div class="tile" data-entity="${esc(st.entity_id)}"><div class="k">${esc(st.attributes.name || `${t.node} ${n}`)}</div><div class="v" style="color:${good ? 'inherit' : 'var(--error-color,#db4437)'}">${esc(good ? t.ok : st.state)}</div><div class="s">${lines.map(esc).join('<br>')}</div></div>`;
       })
