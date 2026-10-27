@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.20
+
+- Router card: fixed an empty extra *Router* card shown above the real one (introduced in 0.5.17). It came from device trackers, which belong to no router device and are now ignored.
+
+## 0.5.20
+
+- Cards: they are now loaded through a small self-healing loader (as in the Skolengo integration). On Firefox the cards could stay on "Configuration error" until a manual refresh; the loader re-imports the cards, retries if the elements are still missing and asks Lovelace to rebuild the cards left in error. The existing Lovelace resource is migrated automatically.
+
 ## 0.5.19
 
 - Router card: with several router nodes (mesh), the ports of the main router are no longer mixed with those of the others; each other node shows its own ports in its tile. Tiles without a value (for example the external IP of a secondary router) are hidden.

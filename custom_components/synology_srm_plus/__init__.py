@@ -17,7 +17,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
-from .const import CARD_URL, CONF_SAFE_ACCESS, DOMAIN, VERSION
+from .const import CARD_URL, CONF_SAFE_ACCESS, LOADER_URL, DOMAIN, VERSION
 from .coordinator import SrmCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,7 +55,8 @@ async def _async_register_card_resource(
         if not resources.loaded:
             await resources.async_load()
         for item in resources.async_items():
-            if str(item["url"]).split("?")[0] == CARD_URL:
+            # Older versions registered the cards file directly: migrate that entry.
+            if str(item["url"]).split("?")[0] in (LOADER_URL, CARD_URL):
                 if item["url"] != url:
                     await resources.async_update_item(
                         item["id"], {"res_type": "module", "url": url}
@@ -92,11 +93,15 @@ def _async_notify_reload(hass: HomeAssistant) -> None:
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Serve the dashboard cards and make sure the frontend loads them."""
-    card = Path(__file__).parent / "www" / "synology-srm-card.js"
+    www = Path(__file__).parent / "www"
     await hass.http.async_register_static_paths(
-        [StaticPathConfig(CARD_URL, str(card), cache_headers=False)]
+        [
+            StaticPathConfig(CARD_URL, str(www / "synology-srm-card.js"), cache_headers=False),
+            StaticPathConfig(LOADER_URL, str(www / "synology-srm-loader.js"), cache_headers=False),
+        ]
     )
-    url = f"{CARD_URL}?v={VERSION}"
+    # The loader is what the frontend loads; it imports the cards itself.
+    url = f"{LOADER_URL}?v={VERSION}"
     registered, created = await _async_register_card_resource(hass, url)
     if not registered:
         add_extra_js_url(hass, url)
