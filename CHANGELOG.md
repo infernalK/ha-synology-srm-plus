@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.5.22
+
+- Wi-Fi networks: new sensors per Wi-Fi network (the SRM profile, for example *IOT*): number of clients (with the bands and SSIDs in use) and download/upload traffic.
+- Router card: the client traffic is shown in two sections, per connection (Total, Wired, Wi-Fi bands) and per Wi-Fi network. New option `traffic_by` (`both` by default, `bands` or `networks`).
+- Clients card: two rows of filters that combine, per connection (band, wired, offline) and per Wi-Fi network, with counts that follow the other filter. New option `filter_by` (`both` by default, `connection` or `network`). Search also matches the network name.
+- Visual editors for the five cards (title, router, and the options of each card).
+- External address: only a valid address of the right family is shown. `0:0:0:0:0:0:0:0`, a MAC address, a link-local address or a non-global IPv6 now give *unknown* instead of a wrong value.
+- Fixed in the clients card: clients listed twice and a "Wi-Fi undefined" chip when the per-network sensors were present.
+
 ## 0.5.21
 
 - Fixed mixed-up answers from the router: the `synology-srm` library shares one parameters dictionary between all calls, so calls made at the same time sent each other's API, method and version and received the wrong payload (for example the external IP answering with the DDNS record, or the threat statistics with the sensor settings). Each call now has its own parameters. This was most visible on routers with several nodes.
