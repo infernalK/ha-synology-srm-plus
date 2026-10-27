@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import ipaddress
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -48,22 +49,36 @@ def _num(value: Any, scale: float = 1) -> float | int | None:
     return round(value * scale, 2) if scale != 1 else value
 
 
+def _address(value: Any, version: int) -> str | None:
+    """Return value if it is a usable address of this IP version, else None.
+
+    Rejects what is not an address (a MAC), "0:0:0:0:0:0:0:0", loopback and link-local
+    addresses, and a private or unique-local IPv6 as an external address.
+    """
+    try:
+        addr = ipaddress.ip_address(str(value).strip())
+    except ValueError:
+        return None
+    if addr.version != version or addr.is_unspecified or addr.is_loopback or addr.is_link_local or addr.is_multicast:
+        return None
+    if version == 6 and not addr.is_global:
+        return None
+    return str(value).strip()
+
+
 def _external(d: dict[str, Any], field: str) -> Any:
-    """External address: the WAN entry, else any entry that has one."""
+    """External address: the WAN entry, else any entry that has one, else the WAN connection's."""
+    version = 6 if field == "ipv6" else 4
     items = d.get("external_ip")
     if isinstance(items, dict):  # some routers wrap the list: {"next_update_time": ..., "records": [...]}
         items = items.get("records")
     wan = _find(items, type="WAN") or {}
-    if wan.get(field):
-        return wan[field]
-    found = next(
-        (i[field] for i in items if isinstance(i, dict) and i.get(field)) if isinstance(items, list) else iter(()),
-        None,
-    )
-    if found is None and field == "ip":
+    found = _address(wan.get(field), version)
+    if found is None and isinstance(items, list):
+        found = next((a for i in items if isinstance(i, dict) and (a := _address(i.get(field), version))), None)
+    if found is None and version == 4:
         # The external-IP service sometimes answers nothing: use the WAN connection's address.
-        ip = _dig(d.get("connection_status"), "ipv4", "ip")
-        return ip if isinstance(ip, str) and ip else None
+        found = _address(_dig(d.get("connection_status"), "ipv4", "ip"), 4)
     return found
 
 
