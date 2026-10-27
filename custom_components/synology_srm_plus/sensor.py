@@ -54,10 +54,15 @@ def _external(d: dict[str, Any], field: str) -> Any:
     wan = _find(items, type="WAN") or {}
     if wan.get(field):
         return wan[field]
-    return next(
+    found = next(
         (i[field] for i in items if isinstance(i, dict) and i.get(field)) if isinstance(items, list) else iter(()),
         None,
     )
+    if found is None and field == "ip":
+        # The external-IP service sometimes answers nothing: use the WAN connection's address.
+        ip = _dig(d.get("connection_status"), "ipv4", "ip")
+        return ip if isinstance(ip, str) and ip else None
+    return found
 
 
 def _find(items: Any, **match: Any) -> dict[str, Any] | None:

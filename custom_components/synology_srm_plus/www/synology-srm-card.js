@@ -236,6 +236,10 @@ const STYLE = `
   .detail span { overflow-wrap: anywhere; }
 `;
 
+const CARDS_VERSION = '0.5.20'; // keep in sync with const.py VERSION (tests/smoke.py checks it)
+// eslint-disable-next-line no-console
+console.info(`Synology SRM Plus cards v${CARDS_VERSION}`);
+
 class SrmBaseCard extends HTMLElement {
   constructor() {
     super();
@@ -461,6 +465,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
         <h3>${esc(t.network)}</h3>
         <div class="grid">${tile(t.external, ext4)}${tile('IPv6', ext6)}${tile(t.mode, mode)}${tile(t.offline_clients, first('clients_offline'))}${links}</div>${portSpeeds ? `<h3>${esc(t.ports)}</h3><div class="grid">${portSpeeds}</div>` : ''}
         ${usb || storage ? `<h3>${esc(t.storage)}</h3><div class="grid">${usb}${storage}</div>` : ''}
+        <div class="sub" style="text-align:right;opacity:.5;font-size:.7em;margin-top:8px">cards v${CARDS_VERSION} · ${all('node_status').length} nodes · ${all('port_speed').length} ports</div>
       </ha-card>`;
   }
 }

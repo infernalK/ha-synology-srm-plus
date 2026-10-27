@@ -14,7 +14,7 @@ import sys
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from custom_components.synology_srm_plus import binary_sensor, coordinator, sensor  # noqa: E402
+from custom_components.synology_srm_plus import binary_sensor, const, coordinator, sensor  # noqa: E402
 from custom_components.synology_srm_plus.clients import normalize_clients  # noqa: E402
 
 RAW_CLIENTS = [
@@ -255,6 +255,10 @@ def main() -> int:
     got = [p["name"] for p in named["safe_profiles"]["profiles"]]
     if got != ["Primary Network", "lbr3", "Kids"]:
         errors.append(f"network profile names: {got!r}")
+
+    card = (ROOT / "custom_components/synology_srm_plus/www/synology-srm-card.js").read_text(encoding="utf-8")
+    if f"const CARDS_VERSION = '{const.VERSION}'" not in card:
+        errors.append("CARDS_VERSION in synology-srm-card.js differs from const.VERSION")
 
     print(f"{len(descriptions)} descriptions checked")
     for error in errors:
