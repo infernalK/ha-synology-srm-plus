@@ -346,7 +346,25 @@ def build_client(data: dict[str, Any]) -> synology_srm.Client:
     )
     if not data[CONF_VERIFY_SSL]:
         client.http.disable_https_verify()
+    _isolate_call_params(client.http)
     return client
+
+
+def _isolate_call_params(http: Any) -> None:
+    """Give every call its own parameters dict.
+
+    synology-srm's Http.call has `params: dict = {}` as default and writes the api,
+    method and version into it: that one dict is shared by every call, so calls made
+    at the same time (we run a few in parallel) send each other's api/method/version
+    and the router answers with the wrong payload (a threat-statistics call returning
+    the sensor settings, the external IP returning the DDNS record...).
+    """
+    original = http.call
+
+    def call(endpoint: str, api: str, method: str, version: int = 1, params: dict | None = None, **kwargs: Any) -> Any:
+        return original(endpoint, api, method, version, params=dict(params or {}), **kwargs)
+
+    http.call = call
 
 
 class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
