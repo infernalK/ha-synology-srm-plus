@@ -236,7 +236,7 @@ const STYLE = `
   .detail span { overflow-wrap: anywhere; }
 `;
 
-const CARDS_VERSION = '0.5.20'; // keep in sync with const.py VERSION (tests/smoke.py checks it)
+const CARDS_VERSION = '0.5.21'; // keep in sync with const.py VERSION (tests/smoke.py checks it)
 // eslint-disable-next-line no-console
 console.info(`Synology SRM Plus cards v${CARDS_VERSION}`);
 

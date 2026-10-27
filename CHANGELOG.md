@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.5.21
+
+- Fixed mixed-up answers from the router: the `synology-srm` library shares one parameters dictionary between all calls, so calls made at the same time sent each other's API, method and version and received the wrong payload (for example the external IP answering with the DDNS record, or the threat statistics with the sensor settings). Each call now has its own parameters. This was most visible on routers with several nodes.
+- Threat statistics: if an answer lacks its data, the call is asked again alone and then with the other API versions the router lists; what was tried is reported once in the log and in the diagnostics.
+- External IP: the answer is also read when the router wraps the list in `{records: [...]}`, and the address of the WAN connection is used when the external-IP service gives none.
+- Router card: the ports are grouped per router, with the router's name as a sub-heading when there are several. A small line at the bottom shows the version of the cards and how many nodes and ports they received.
+- New action `synology_srm_plus.debug_report`: a short text report (versions, routers, ports, external address, threat statistics, storage, entities without a value) with no names, addresses or MAC addresses, to paste when asking for help. The same report, the API versions and the state of the main entities are in the diagnostics file; addresses and entity ids are not reported there.
+
 ## 0.5.20
 
 - Router card: fixed an empty extra *Router* card shown above the real one (introduced in 0.5.17). It came from device trackers, which belong to no router device and are now ignored.
