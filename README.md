@@ -21,8 +21,8 @@ Developed and tested on an **RT2600ac (SRM 1.3.2)**. The built-in `synology_srm`
 | Router | status, uptime, firmware, model, **real throughput** (rx / tx, including hardware-accelerated traffic), connected devices; the same for each **other node** (Wi-Fi access point / repeater such as an MR2200ac): status, uptime, firmware, model, connected devices, throughput |
 | CPU / memory | CPU usage, user / system share, load average (1 / 5 / 15 min), memory and swap usage, memory details (diagnostic) |
 | Clients | online clients, **one sensor per connection** (Wi-Fi 2.4G, Wi-Fi 5G, Wired) whose attributes list every attached client, **offline clients with their last connection**, client download / upload (total and per connection) |
-| Wi-Fi | per band: channel, throughput, average signal, client count; width / power / mode as attributes |
-| Network | IPv4 / IPv6 connection status, network mode (router / bridge), external IPv4 / IPv6 (+ DDNS names), Ethernet links (status, speed, IP) |
+| Wi-Fi | per band: channel, throughput, average signal, client count; width / power / mode as attributes. **Per Wi-Fi network** (the SRM profile, for example *IOT*): client count (with the bands and SSIDs in use) and download / upload |
+| Network | IPv4 / IPv6 connection status, network mode (router / bridge), external IPv4 / IPv6 (+ DDNS names; only a valid address is shown, and the IPv4 of the WAN connection is used when the router's external-IP service gives none), Ethernet links (status, speed, IP) |
 | Ports | link speed and link state of the WAN port and each LAN port |
 | Storage | **USB disk usage** (%, used, total), disk and volume activity |
 | Security | threat events (24 h / 7 days), new devices, admin sessions, blocked IPs and **blocked devices**, **Wi-Fi block list** (the system list that applies to every SSID, with broadcast-storm prevention), **custom MAC filters** and the Wi-Fi networks that use one, port forwarding rules, threat protection on/off, **warnings** when the admin interface is reachable from the Internet or someone connected from outside |
@@ -58,8 +58,8 @@ Five cards are included and loaded automatically (no resource to add):
 *Rendered with neutral sample data. In Home Assistant the client icons are Material Design icons (the emoji here are stand-ins used by the preview harness) and the colors follow your theme.*
 
 ```yaml
-type: custom:synology-srm-router-card     # gauges, traffic, bands, Wi-Fi access points (repeaters), ports, USB, storage
-traffic_by: both         # optional: client traffic per Wi-Fi band (bands), per Wi-Fi network such as IOT (networks) or both (default)
+type: custom:synology-srm-router-card     # gauges, traffic, bands, Wi-Fi access points (repeaters), ports per router, USB, storage
+traffic_by: both         # optional: client traffic per Wi-Fi band (bands), per Wi-Fi network such as IOT (networks) or both (default); two separate sections
 ```
 
 ```yaml
@@ -67,7 +67,7 @@ type: custom:synology-srm-clients-card    # every client, offline ones included
 title: Clients
 sort_by: download        # download | upload | signal | ip | name | last_seen
 groups: [5G, 2.4G]       # optional filter (also: Wired, Offline)
-filter_by: both          # optional: filter chips per connection (band, wired), per Wi-Fi network such as IOT, or both (default)
+filter_by: both          # optional: two rows of filter chips that combine: per connection (band, wired, offline) and per Wi-Fi network such as IOT (connection | network | both, default both)
 max_height: 500          # optional, px
 ```
 
@@ -86,7 +86,7 @@ type: custom:synology-srm-safeaccess-card # Safe Access (parental control): time
 
 After the first install, reload the page **without cache** (Ctrl+Shift+R, or Cmd+Shift+R on Mac; in the mobile app, *Settings → Companion app → Reset frontend cache*) so the cards are picked up. The integration shows a notification to remind you.
 
-The cards find the integration's entities on their own; add `device_id: <id>` if you have several routers. In the clients card, click a client to expand all its details, double-click to open its connection sensor. A ready-made dashboard is in [dashboards/synology-srm.yaml](dashboards/synology-srm.yaml). The cards follow your Home Assistant language (English or French).
+Every card has a **visual editor** (edit the card in the dashboard): title, router and the options above, no YAML needed. The cards find the integration's entities on their own; add `device_id: <id>` if you have several routers. In the clients card, click a client to expand all its details, double-click to open its connection sensor. A ready-made dashboard is in [dashboards/synology-srm.yaml](dashboards/synology-srm.yaml). The cards follow your Home Assistant language (English or French).
 
 ## Install
 
@@ -121,9 +121,18 @@ The log output is **masked**: passwords, keys and PINs, account and host names, 
 
 The SRM API takes the account, password and session id as URL parameters, and HTTP libraries quote URLs in their errors and debug logs. This integration scrubs them (`passwd=***`) from its own messages and from the `urllib3` loggers, never logs a traceback of a failed login, and masks addresses, MAC addresses, names and secrets in the diagnostics file. The Wi-Fi network settings are reduced to harmless fields before being stored, because the raw payload holds the Wi-Fi passwords.
 
+## Troubleshooting
+
+Two read-only actions (*Developer tools → Actions*) help when something looks wrong. Paste their result when asking for help:
+
+- `synology_srm_plus.debug_report`: a short text report with the versions, the routers and their ports, where the external address comes from, the threat statistics, storage, the number of Wi-Fi networks and the entities without a value. It contains no names, addresses or MAC addresses.
+- `synology_srm_plus.check_parallel`: asks the router three different questions at the same time, with and without the protection against mixed-up answers, and counts the answers that belong to another question (about ten seconds).
+
+If the values look wrong after an update, reload the page without cache: the footer of the router card shows the version of the cards in use (`cards v…`).
+
 ## Help us support more models
 
-This was built on a single router, so feedback from other models is very welcome. Open an issue using the template and attach the **diagnostics file**: *Settings → Devices & services → Synology SRM Plus → ⋮ → Download diagnostics*. It lists the API names your router offers and the raw payloads, with addresses, host names, serial number and credentials redacted. Please still skim it before posting.
+This was built on a single router, so feedback from other models is very welcome. Open an issue using the template and attach the **diagnostics file**: *Settings → Devices & services → Synology SRM Plus → ⋮ → Download diagnostics*. It lists the API names your router offers (with their versions) and the raw payloads, with addresses, host names, serial number and credentials redacted, plus the same short report as `debug_report`. The state of the main entities is listed without entity ids or external addresses. Please still skim it before posting.
 
 ## License
 

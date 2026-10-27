@@ -21,8 +21,8 @@ Développée et testée sur un **RT2600ac (SRM 1.3.2)**. L'intégration native `
 | Routeur | état, durée de fonctionnement, firmware, modèle, **débit réel** (rx / tx, trafic accéléré par le matériel compris), appareils connectés ; idem pour chaque **autre nœud** (point d'accès Wi-Fi / répéteur comme un MR2200ac) : état, durée de fonctionnement, firmware, modèle, appareils connectés, débit |
 | CPU / mémoire | utilisation CPU, part utilisateur / système, charge moyenne (1 / 5 / 15 min), utilisation de la mémoire et du swap, détails mémoire (diagnostic) |
 | Clients | clients en ligne, **un capteur par connexion** (Wi-Fi 2,4G, Wi-Fi 5G, Filaire) dont les attributs listent chaque client rattaché, **clients hors ligne avec leur dernière connexion**, téléchargement / envoi des clients (total et par connexion) |
-| Wi-Fi | par bande : canal, débit, signal moyen, nombre de clients ; largeur / puissance / mode en attributs |
-| Réseau | état de la connexion IPv4 / IPv6, mode réseau (routeur / bridge), IPv4 / IPv6 externes (+ noms DDNS), liens Ethernet (état, vitesse, IP) |
+| Wi-Fi | par bande : canal, débit, signal moyen, nombre de clients ; largeur / puissance / mode en attributs. **Par réseau Wi-Fi** (le profil SRM, par exemple *IOT*) : nombre de clients (avec les bandes et SSID utilisés) et téléchargement / envoi |
+| Réseau | état de la connexion IPv4 / IPv6, mode réseau (routeur / bridge), IPv4 / IPv6 externes (+ noms DDNS ; seule une adresse valide est affichée, et l'IPv4 de la connexion WAN sert quand le service d'IP externe du routeur n'en donne pas), liens Ethernet (état, vitesse, IP) |
 | Ports | vitesse et état du lien du port WAN et de chaque port LAN |
 | Stockage | **utilisation du disque USB** (%, utilisé, total), activité des disques et volumes |
 | Sécurité | menaces détectées (24 h / 7 jours), nouveaux appareils, sessions d'administration, IP bloquées et **appareils bloqués**, **liste de blocage Wi-Fi** (la liste système, valable pour tous les SSID, avec la prévention des tempêtes de diffusion), **filtres MAC personnalisés** et réseaux Wi-Fi qui en utilisent un, redirections de ports, protection contre les menaces activée ou non, **alertes** si l'interface d'administration est joignable depuis Internet ou si quelqu'un s'est connecté de l'extérieur |
@@ -58,7 +58,8 @@ Cinq cartes sont fournies et chargées automatiquement (aucune ressource à ajou
 *Rendu avec des données d'exemple neutres, en anglais. Dans Home Assistant, les icônes des clients sont des icônes Material Design (les émojis ici sont des substituts du banc d'essai) et les couleurs suivent votre thème. Les cartes s'affichent en français si Home Assistant est en français.*
 
 ```yaml
-type: custom:synology-srm-router-card     # jauges, trafic, bandes, points d'accès Wi-Fi (répéteurs), ports, USB, stockage
+type: custom:synology-srm-router-card     # jauges, trafic, bandes, points d'accès Wi-Fi (répéteurs), ports par routeur, USB, stockage
+traffic_by: both         # facultatif : trafic des clients par bande Wi-Fi (bands), par réseau Wi-Fi comme IOT (networks) ou les deux (défaut) ; deux sections séparées
 ```
 
 ```yaml
@@ -66,6 +67,7 @@ type: custom:synology-srm-clients-card    # chaque client, hors ligne compris
 title: Clients
 sort_by: download        # download | upload | signal | ip | name | last_seen
 groups: [5G, 2.4G]       # filtre facultatif (aussi : Wired, Offline)
+filter_by: both          # facultatif : deux rangées de pastilles qui se combinent, par connexion (bande, filaire, hors ligne) et par réseau Wi-Fi comme IOT (connection | network | both, défaut both)
 max_height: 500          # facultatif, en px
 ```
 
@@ -84,7 +86,7 @@ type: custom:synology-srm-safeaccess-card # Safe Access (contrôle parental) : t
 
 Après la première installation, rechargez la page **sans cache** (Ctrl+Maj+R, ou Cmd+Maj+R sur Mac ; dans l'application mobile, *Paramètres → Application → Réinitialiser le cache du frontend*) pour que les cartes soient prises en compte. L'intégration affiche une notification pour vous le rappeler.
 
-Les cartes retrouvent seules les entités de l'intégration ; ajoutez `device_id: <id>` si vous avez plusieurs routeurs. Dans la carte des clients, un clic déplie tous les détails d'un client, un double-clic ouvre son capteur de connexion. Un tableau de bord prêt à coller se trouve dans [dashboards/synology-srm.yaml](dashboards/synology-srm.yaml).
+Chaque carte a un **éditeur visuel** (modifier la carte dans le tableau de bord) : titre, routeur et les options ci-dessus, sans YAML. Les cartes retrouvent seules les entités de l'intégration ; ajoutez `device_id: <id>` si vous avez plusieurs routeurs. Dans la carte des clients, un clic déplie tous les détails d'un client, un double-clic ouvre son capteur de connexion. Un tableau de bord prêt à coller se trouve dans [dashboards/synology-srm.yaml](dashboards/synology-srm.yaml).
 
 ## Installation
 
@@ -119,9 +121,18 @@ Le journal est **masqué** : mots de passe, clés et codes PIN, noms de comptes 
 
 L'API de SRM reçoit le compte, le mot de passe et l'identifiant de session dans l'URL, et les bibliothèques HTTP citent les URL dans leurs erreurs et leurs journaux de débogage. Cette intégration les masque (`passwd=***`) dans ses propres messages et dans les journaux de `urllib3`, n'écrit jamais la trace d'une connexion échouée, et masque adresses, adresses MAC, noms et secrets dans le fichier de diagnostic. Les réglages des réseaux Wi-Fi sont réduits à des champs sans risque avant stockage, car les données brutes contiennent les mots de passe Wi-Fi.
 
+## Dépannage
+
+Deux actions en lecture seule (*Outils de développement → Actions*) aident quand quelque chose semble faux. Collez leur résultat quand vous demandez de l'aide :
+
+- `synology_srm_plus.debug_report` : un court rapport texte avec les versions, les routeurs et leurs ports, l'origine de l'adresse externe, les statistiques de menaces, le stockage, le nombre de réseaux Wi-Fi et les entités sans valeur. Il ne contient ni noms, ni adresses, ni adresses MAC.
+- `synology_srm_plus.check_parallel` : pose trois questions différentes au routeur en même temps, avec et sans la protection contre les réponses mélangées, et compte les réponses qui appartiennent à une autre question (une dizaine de secondes).
+
+Si les valeurs semblent fausses après une mise à jour, rechargez la page sans cache : le bas de la carte routeur indique la version des cartes utilisée (`cards v…`).
+
 ## Aidez-nous à prendre en charge plus de modèles
 
-Cette intégration a été construite sur un seul routeur : les retours d'autres modèles sont les bienvenus. Ouvrez un ticket avec le modèle fourni et joignez le **fichier de diagnostic** : *Paramètres → Appareils et services → Synology SRM Plus → ⋮ → Télécharger les diagnostics*. Il liste les API que votre routeur propose et les données brutes, avec adresses, noms d'hôtes, numéro de série et identifiants masqués. Relisez-le tout de même avant de le publier.
+Cette intégration a été construite sur un seul routeur : les retours d'autres modèles sont les bienvenus. Ouvrez un ticket avec le modèle fourni et joignez le **fichier de diagnostic** : *Paramètres → Appareils et services → Synology SRM Plus → ⋮ → Télécharger les diagnostics*. Il liste les API que votre routeur propose (avec leurs versions) et les données brutes, avec adresses, noms d'hôtes, numéro de série et identifiants masqués, plus le même court rapport que `debug_report`. L'état des entités principales y figure sans leurs identifiants ni les adresses externes. Relisez-le tout de même avant de le publier.
 
 ## Licence
 
