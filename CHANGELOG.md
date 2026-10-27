@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.18
+
+- Clients card: the cable icon of wired clients is now coloured like the Wi-Fi signal bars (green from 1 Gbit/s, yellow at 100 Mbit/s, red below).
+
 ## 0.5.17
 
 - Safe Access: the profile of a network, which SRM names `$lbr0$`, `$lbr2$`..., now takes the name of that network (for example *Primary Network*), read from the router's local networks. Entity ids are unchanged.

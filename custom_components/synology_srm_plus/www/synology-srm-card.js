@@ -602,6 +602,13 @@ class SynologySrmClientsCard extends SrmBaseCard {
       return `<span class="sig" title="${esc(signal)}%">${[1, 2, 3, 4].map((i) => `<i style="height:${i * 3}px;${i <= n ? `background:${color}` : ''}"></i>`).join('')}</span>`;
     };
 
+    // wired: coloured like the Wi-Fi bars, by link speed (unknown speed counts as fine)
+    const cable = (rate) => {
+      const r = Number(rate) || 0;
+      const color = !r || r >= 1000 ? 'var(--success-color,#43a047)' : r >= 100 ? 'var(--warning-color,#ffa600)' : 'var(--error-color,#db4437)';
+      return `<ha-icon icon="mdi:ethernet-cable" style="--mdc-icon-size:14px;color:${color}"></ha-icon>`;
+    };
+
     const detailOf = (c) => {
       const skip = new Set(['name', '_entity']);
       const flat = Object.entries(c).flatMap(([k, v]) =>
@@ -630,7 +637,7 @@ class SynologySrmClientsCard extends SrmBaseCard {
             const seen = off && c.last_seen ? `${t.last_seen} ${ago(c.last_seen)} ${t.ago}`.trim() : '';
             const meta = [c.ip || c.ipv6, labelOf(c.group), c.ssid, seen].filter(Boolean).join(' · ');
             const rate = c.link_rate ? `${c.link_rate} Mbit/s` : '';
-            const status = off ? '<ha-icon icon="mdi:lan-disconnect" style="--mdc-icon-size:14px"></ha-icon>' : wifi ? bars(c.signal) : '<ha-icon icon="mdi:ethernet-cable" style="--mdc-icon-size:14px"></ha-icon>';
+            const status = off ? '<ha-icon icon="mdi:lan-disconnect" style="--mdc-icon-size:14px"></ha-icon>' : wifi ? bars(c.signal) : cable(c.link_rate);
             return `<div class="row ${off ? 'off' : ''}" data-mac="${esc(c.mac)}" data-entity="${esc(c._entity)}">
               <div class="ico"><ha-icon icon="${icon}"></ha-icon>${status}</div>
               <div style="min-width:0"><div class="nm">${esc(c.name)}</div><div class="meta">${esc(meta)}</div></div>
