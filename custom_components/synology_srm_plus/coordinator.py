@@ -530,6 +530,11 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 result = call(self.client, endpoint=self._endpoint(api))
             else:
                 result = call(self.client)
+            if key == "traffic_live" and result == []:
+                # The router only fills its live traffic list while it is being asked
+                # for it: the first call wakes it up and comes back empty.
+                time.sleep(2)
+                result = call(self.client)
         except SynologyException as err:
             if warn:
                 self._warn_once(

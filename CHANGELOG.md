@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.16
+
+- Wired clients: the router's live traffic list is empty on the first call after a pause (it only fills while being asked), so an empty answer is now asked again after two seconds.
+
 ## 0.5.15
 
 - Wired clients now have a download / upload rate (it was always 0): SRM gives none for them in the device list, so it is read from the router's live traffic, which only lists the devices that moved data during the last second.
