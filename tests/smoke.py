@@ -177,11 +177,15 @@ def main() -> int:
     fake._poll = 0  # noqa: SLF001
     fake._cache = {}  # noqa: SLF001
     fake._warned = set()  # noqa: SLF001
+    fake._versions = {}  # noqa: SLF001
+    fake.probes = {}
     fake.config_entry = MagicMock(options={})
     fetched = fake._fetch()  # noqa: SLF001
     assert fake._poll == 1 and "mesh_nodes" in fetched and "client_list" in fetched, fetched.keys()
     assert fetched["traffic_live"] is None and "traffic_live" in fake._warned  # noqa: SLF001
     assert fake.client.http.call.call_count >= 10, fake.client.http.call.call_count
+    # an answer without its data (here the threat trends) is probed, once, and reported
+    assert fake.probes["tps_trends"]["version"] is None and "v1" in fake.probes["tps_trends"]["tried"], fake.probes
     fake._fetch()  # noqa: SLF001  (second poll: slow endpoints come from the cache)
     assert fake._poll == 2  # noqa: SLF001
     # Safe Access off: its endpoints are skipped, whatever the router offers
