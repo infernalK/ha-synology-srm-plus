@@ -351,6 +351,20 @@ class SynologySrmRouterCard extends SrmBaseCard {
       })
       .join('');
 
+    // traffic per Wi-Fi network (SRM profile such as "IOT"), which can span several bands
+    const netRx = Object.fromEntries(all('network_rx').map((s) => [s.attributes.network, s]));
+    const netTx = Object.fromEntries(all('network_tx').map((s) => [s.attributes.network, s]));
+    const netCount = Object.fromEntries(all('clients_network').map((s) => [s.attributes.network, s]));
+    const networkTiles = [...new Set([...Object.keys(netRx), ...Object.keys(netTx)])]
+      .sort()
+      .filter((n) => netCount[n] && Number(netCount[n].state) > 0)
+      .map((n) => {
+        const c = netCount[n];
+        const bands = (c.attributes.bands || []).join(' · ');
+        return `<div class="tile" data-entity="${esc((netRx[n] || netTx[n]).entity_id)}"><div class="k">${esc(t.wifi)} ${esc(n)} · ${esc(c.state)} ${Number(c.state) === 1 ? t.client : t.clients}</div><div class="v"><span class="down">↓ ${fmtRate(rateOf(netRx[n]))}</span></div><div class="v"><span class="up">↑ ${fmtRate(rateOf(netTx[n]))}</span></div>${bands ? `<div class="s">${esc(bands)}</div>` : ''}</div>`;
+      })
+      .join('');
+
     // wi-fi bands
     const wifiTiles = groupSensors
       .filter((s) => s.attributes.group && !['Wired', 'Offline'].includes(s.attributes.group))
@@ -467,7 +481,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
         </div>
         <div class="gauges">${gauge(t.cpu, first('cpu_usage'), 60, 85)}${gauge(t.memory, first('memory_usage'), 70, 90)}${gauge(t.swap, first('swap_usage'), 40, 70)}</div>
         ${load.length ? `<div class="sub" style="text-align:center;margin-top:4px" data-entity="${esc(load[0].entity_id)}">${esc(t.load)} ${load.map((s) => Number(s.state).toFixed(2)).join(' · ')}</div>` : ''}
-        ${routerTile || trafficTiles ? `<h3>${esc(t.traffic)}</h3><div class="grid">${routerTile}${trafficTiles}</div>` : ''}
+        ${routerTile || trafficTiles ? `<h3>${esc(t.traffic)}</h3><div class="grid">${routerTile}${trafficTiles}${networkTiles}</div>` : ''}
         ${wifiTiles ? `<h3>${esc(t.wifi)}</h3><div class="grid">${wifiTiles}</div>` : ''}
         ${nodeTiles ? `<h3>${esc(t.nodes)}</h3><div class="grid">${nodeTiles}</div>` : ''}
         <h3>${esc(t.network)}</h3>

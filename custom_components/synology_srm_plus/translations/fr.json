@@ -212,6 +212,15 @@
       },
       "blocked_devices": {
         "name": "Appareils bloqués"
+      },
+      "clients_network": {
+        "name": "Clients Wi-Fi {network}"
+      },
+      "network_rx": {
+        "name": "Wi-Fi {network} téléchargement"
+      },
+      "network_tx": {
+        "name": "Wi-Fi {network} envoi"
       }
     },
     "binary_sensor": {

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import ipaddress
+import re
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -343,6 +344,43 @@ def _clients(d: dict[str, Any], group: str | None = None) -> list[dict[str, Any]
     return [c for c in clients if group is None or c.get("group") == group]
 
 
+def _network_clients(d: dict[str, Any], network: str) -> list[dict[str, Any]]:
+    """Clients attached to one Wi-Fi network (SRM calls it a profile, for example "IOT")."""
+    return [c for c in _clients(d) if c.get("wifi_profile") == network]
+
+
+def _wifi_network_names(data: dict[str, Any]) -> list[str]:
+    """Names of the Wi-Fi networks: those the router lists and those clients are on."""
+    names = {
+        str(n["name"])
+        for n in _dig(data.get("wifi_networks"), "networks") or []
+        if isinstance(n, dict) and n.get("name")
+    }
+    names |= {str(c["wifi_profile"]) for c in _clients(data) if c.get("wifi_profile")}
+    return sorted(names)
+
+
+def _sum_network_rate(d: dict[str, Any], field: str, network: str) -> float:
+    return sum(
+        c[field]
+        for c in _network_clients(d, network)
+        if isinstance(c.get(field), (int, float)) and not isinstance(c.get(field), bool)
+    )
+
+
+def _network_attrs(d: dict[str, Any], network: str) -> dict[str, Any]:
+    clients = _network_clients(d, network)
+    return {
+        "integration": DOMAIN,
+        "network": network,
+        "clients": clients,
+        "bands": sorted({c["band"] for c in clients if c.get("band")}),
+        "ssids": sorted({c["ssid"] for c in clients if c.get("ssid")}),
+        "download": _sum_network_rate(d, "download", network),
+        "upload": _sum_network_rate(d, "upload", network),
+    }
+
+
 def _sum_rate(d: dict[str, Any], field: str, group: str | None) -> float:
     return sum(
         c[field]
@@ -447,6 +485,33 @@ def _client_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
                 attrs_fn=lambda d, g=group: _group_attrs(d, g),
             )
         )
+    for network in _wifi_network_names(data):
+        slug = re.sub(r"\W+", "_", network).strip("_").lower() or "network"
+        out.append(
+            SrmSensorDescription(
+                key=f"clients_network_{slug}",
+                translation_key="clients_network",
+                placeholders={"network": network},
+                state_class=SensorStateClass.MEASUREMENT,
+                value_fn=lambda d, n=network: len(_network_clients(d, n)),
+                attrs_fn=lambda d, n=network: _network_attrs(d, n),
+            )
+        )
+        for field, tkey in (("download", "network_rx"), ("upload", "network_tx")):
+            out.append(
+                SrmSensorDescription(
+                    key=f"{tkey}_{slug}",
+                    translation_key=tkey,
+                    placeholders={"network": network},
+                    device_class=SensorDeviceClass.DATA_RATE,
+                    native_unit_of_measurement=UnitOfDataRate.BYTES_PER_SECOND,
+                    suggested_unit_of_measurement=UnitOfDataRate.MEGABITS_PER_SECOND,
+                    suggested_display_precision=1,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    value_fn=lambda d, f=field, n=network: _sum_network_rate(d, f, n),
+                    attrs_fn=lambda d, n=network: {"integration": DOMAIN, "network": n},
+                )
+            )
     if isinstance(data.get("offline_list"), list):
         out.append(
             SrmSensorDescription(

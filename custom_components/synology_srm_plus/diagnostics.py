@@ -13,7 +13,7 @@ from homeassistant.helpers import entity_registry as er
 from . import SrmConfigEntry
 from .const import VERSION
 from .coordinator import redact
-from .sensor import _dig, _external, _find, _nodes, _volumes, port_label
+from .sensor import _dig, _external, _find, _network_clients, _nodes, _volumes, _wifi_network_names, port_label
 
 TO_REDACT = {
     CONF_HOST,
@@ -134,6 +134,8 @@ def build_report(
     lines.append(
         f"Wired clients online: {len(wired)}, with a link rate: {sum(1 for c in wired if c.get('current_rate'))}"
     )
+    networks = _wifi_network_names(data)
+    lines.append(f"Wi-Fi networks: {len(networks)}, clients per network: {[len(_network_clients(data, n)) for n in networks]}")
     lines.append("Entities per key: " + ", ".join(f"{k}={v}" for k, v in sorted(counts.items()) if k in WATCHED_KEYS or v > 3))
     lines.append("Unknown/unavailable: " + (", ".join(f"{k}={v}" for k, v in sorted(unknown.items())) or "none"))
     return chr(10).join(lines)
