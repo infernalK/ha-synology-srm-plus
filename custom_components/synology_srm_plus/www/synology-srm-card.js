@@ -16,7 +16,7 @@ const PLATFORM = 'synology_srm_plus';
 const I18N = {
   en: {
     router: 'Router', uptime: 'Uptime', cpu: 'CPU', memory: 'Memory', swap: 'Swap', load: 'Load',
-    traffic: 'Client traffic', total: 'Total', wired: 'Wired', clients: 'clients', client: 'client',
+    traffic: 'Client traffic', traffic_networks: 'Traffic per Wi-Fi network', total: 'Total', wired: 'Wired', clients: 'clients', client: 'client',
     wifi: 'Wi-Fi', channel: 'Channel', signal: 'Signal', network: 'Network', external: 'External IP',
     mode: 'Mode', links: 'Links', storage: 'Storage', connection: 'Connection', ok: 'OK',
     search: 'Search a client…', all: 'All', sort: 'Sort', name: 'Name', download: 'Download',
@@ -40,7 +40,7 @@ const I18N = {
   },
   fr: {
     router: 'Routeur', uptime: 'En ligne depuis', cpu: 'CPU', memory: 'Mémoire', swap: 'Swap', load: 'Charge',
-    traffic: 'Trafic des clients', total: 'Total', wired: 'Filaire', clients: 'clients', client: 'client',
+    traffic: 'Trafic des clients', traffic_networks: 'Trafic par réseau Wi-Fi', total: 'Total', wired: 'Filaire', clients: 'clients', client: 'client',
     wifi: 'Wi-Fi', channel: 'Canal', signal: 'Signal', network: 'Réseau', external: 'IP externe',
     mode: 'Mode', links: 'Liens', storage: 'Stockage', connection: 'Connexion', ok: 'OK',
     search: 'Rechercher un client…', all: 'Tous', sort: 'Tri', name: 'Nom', download: 'Téléchargement',
@@ -486,7 +486,8 @@ class SynologySrmRouterCard extends SrmBaseCard {
         </div>
         <div class="gauges">${gauge(t.cpu, first('cpu_usage'), 60, 85)}${gauge(t.memory, first('memory_usage'), 70, 90)}${gauge(t.swap, first('swap_usage'), 40, 70)}</div>
         ${load.length ? `<div class="sub" style="text-align:center;margin-top:4px" data-entity="${esc(load[0].entity_id)}">${esc(t.load)} ${load.map((s) => Number(s.state).toFixed(2)).join(' · ')}</div>` : ''}
-        ${routerTile || trafficTiles ? `<h3>${esc(t.traffic)}</h3><div class="grid">${routerTile}${trafficTiles}${networkTiles}</div>` : ''}
+        ${routerTile || trafficTiles ? `<h3>${esc(t.traffic)}</h3><div class="grid">${routerTile}${trafficTiles}</div>` : ''}
+        ${networkTiles ? `<h3>${esc(t.traffic_networks)}</h3><div class="grid">${networkTiles}</div>` : ''}
         ${wifiTiles ? `<h3>${esc(t.wifi)}</h3><div class="grid">${wifiTiles}</div>` : ''}
         ${nodeTiles ? `<h3>${esc(t.nodes)}</h3><div class="grid">${nodeTiles}</div>` : ''}
         <h3>${esc(t.network)}</h3>
@@ -524,7 +525,7 @@ class SynologySrmClientsCard extends SrmBaseCard {
     for (const state of Object.values(hass.states)) {
       if (!state.entity_id.startsWith('sensor.')) continue;
       const a = state.attributes;
-      if (a.integration !== PLATFORM || !Array.isArray(a.clients)) continue;
+      if (a.integration !== PLATFORM || !Array.isArray(a.clients) || !a.group) continue;
       const entry = registry[state.entity_id];
       if (deviceId && entry && entry.device_id !== deviceId) continue;
       out.push(state);
@@ -875,6 +876,84 @@ class SynologySrmSafeAccessCard extends SrmEntityCard {
       }));
   }
 }
+
+/* ------------------------------------------------------------------ visual editors */
+
+const EDITOR_LABELS = {
+  en: {
+    title: 'Title', device_id: 'Router (optional, if you have several)', traffic_by: 'Client traffic per',
+    both: 'Wi-Fi band and Wi-Fi network', bands: 'Wi-Fi band', networks: 'Wi-Fi network',
+    sort_by: 'Sort by', groups: 'Show only these connections', max_height: 'Maximum height (px)',
+    show_blocked_ips: 'Show the list of blocked IPs', download: 'Download', upload: 'Upload', signal: 'Signal', name: 'Name', last_seen: 'Last seen',
+  },
+  fr: {
+    title: 'Titre', device_id: 'Routeur (facultatif, si vous en avez plusieurs)', traffic_by: 'Trafic des clients par',
+    both: 'Bande Wi-Fi et réseau Wi-Fi', bands: 'Bande Wi-Fi', networks: 'Réseau Wi-Fi',
+    sort_by: 'Trier par', groups: 'Afficher seulement ces connexions', max_height: 'Hauteur maximale (px)',
+    show_blocked_ips: 'Afficher la liste des IP bloquées', download: 'Téléchargement', upload: 'Envoi', signal: 'Signal', name: 'Nom', last_seen: 'Dernière connexion',
+  },
+};
+
+function editorSchema(kind, L) {
+  const choice = (name, pairs) => ({ name, selector: { select: { mode: 'dropdown', options: pairs.map(([value, label]) => ({ value, label })) } } });
+  const base = [{ name: 'title', selector: { text: {} } }, { name: 'device_id', selector: { device: { integration: PLATFORM } } }];
+  if (kind === 'router') return [...base, choice('traffic_by', [['both', L.both], ['bands', L.bands], ['networks', L.networks]])];
+  if (kind === 'clients') {
+    return [
+      ...base,
+      choice('sort_by', [['download', L.download], ['upload', L.upload], ['signal', L.signal], ['ip', 'IP'], ['name', L.name], ['last_seen', L.last_seen]]),
+      { name: 'groups', selector: { select: { multiple: true, custom_value: true, options: ['Wired', 'Offline', '2.4G', '5G', '5G-1', '5G-2'] } } },
+      { name: 'max_height', selector: { number: { min: 100, max: 2000, step: 50, mode: 'box' } } },
+    ];
+  }
+  if (kind === 'access') return [...base, { name: 'show_blocked_ips', selector: { boolean: {} } }];
+  return base;
+}
+
+class SrmCardEditor extends HTMLElement {
+  setConfig(config) {
+    this._config = { ...config };
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    if (this._form) this._form.hass = hass;
+  }
+
+  _render() {
+    const lang = ((this._hass && (this._hass.language || '')) || 'en').slice(0, 2);
+    const L = EDITOR_LABELS[lang] || EDITOR_LABELS.en;
+    if (!this._form) {
+      this._form = document.createElement('ha-form');
+      this._form.addEventListener('value-changed', (ev) => {
+        ev.stopPropagation();
+        const next = { ...ev.detail.value, type: this._config.type };
+        for (const key of Object.keys(next)) {
+          const v = next[key];
+          if (v === '' || v == null || (Array.isArray(v) && !v.length)) delete next[key];
+        }
+        this._config = next;
+        this.dispatchEvent(new CustomEvent('config-changed', { detail: { config: next }, bubbles: true, composed: true }));
+      });
+      this.appendChild(this._form);
+    }
+    this._form.hass = this._hass;
+    this._form.data = this._config;
+    this._form.schema = editorSchema(this.constructor.kind, L);
+    this._form.computeLabel = (item) => L[item.name] || item.name;
+  }
+}
+
+const EDITORS = { router: 'router', clients: 'clients', threat: 'threat', access: 'access', safeaccess: 'safeaccess' };
+for (const [kind, name] of Object.entries(EDITORS)) {
+  const tag = `synology-srm-${name}-card-editor`;
+  if (!customElements.get(tag)) customElements.define(tag, class extends SrmCardEditor { static kind = kind; });
+}
+for (const [cls, name] of [[SynologySrmRouterCard, 'router'], [SynologySrmClientsCard, 'clients'], [SynologySrmThreatCard, 'threat'], [SynologySrmAccessCard, 'access'], [SynologySrmSafeAccessCard, 'safeaccess']]) {
+  cls.getConfigElement = () => document.createElement(`synology-srm-${name}-card-editor`);
+}
+
 
 if (!customElements.get('synology-srm-access-card')) customElements.define('synology-srm-access-card', SynologySrmAccessCard);
 if (!customElements.get('synology-srm-threat-card')) customElements.define('synology-srm-threat-card', SynologySrmThreatCard);

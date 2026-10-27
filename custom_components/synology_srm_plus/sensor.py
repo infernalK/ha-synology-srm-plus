@@ -370,10 +370,10 @@ def _sum_network_rate(d: dict[str, Any], field: str, network: str) -> float:
 
 def _network_attrs(d: dict[str, Any], network: str) -> dict[str, Any]:
     clients = _network_clients(d, network)
+    # No "integration" nor client list: the clients card takes sensors that carry both
+    # for connection groups and would list these clients a second time.
     return {
-        "integration": DOMAIN,
         "network": network,
-        "clients": clients,
         "bands": sorted({c["band"] for c in clients if c.get("band")}),
         "ssids": sorted({c["ssid"] for c in clients if c.get("ssid")}),
         "download": _sum_network_rate(d, "download", network),
@@ -509,7 +509,7 @@ def _client_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
                     suggested_display_precision=1,
                     state_class=SensorStateClass.MEASUREMENT,
                     value_fn=lambda d, f=field, n=network: _sum_network_rate(d, f, n),
-                    attrs_fn=lambda d, n=network: {"integration": DOMAIN, "network": n},
+                    attrs_fn=lambda d, n=network: {"network": n},
                 )
             )
     if isinstance(data.get("offline_list"), list):
