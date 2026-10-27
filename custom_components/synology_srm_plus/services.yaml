@@ -7,3 +7,5 @@ explore_api:
         text:
 
 debug_report: {}
+
+check_parallel: {}

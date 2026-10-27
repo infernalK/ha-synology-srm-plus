@@ -275,6 +275,10 @@
     "debug_report": {
       "name": "Debug report",
       "description": "Returns a short text report (versions, routers, ports, external address, threat statistics, storage, unknown entities) with no names, addresses or MAC addresses. Run it in Developer tools > Actions and paste the result when asking for help."
+    },
+    "check_parallel": {
+      "name": "Check parallel calls",
+      "description": "Read-only test: asks the router three different questions at the same time, with and without the fix, and counts the answers that belong to another question. Takes about ten seconds. Paste the result when asking for help."
     }
   }
 }

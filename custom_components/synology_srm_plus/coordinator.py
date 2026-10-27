@@ -34,6 +34,12 @@ from .const import CONF_SAFE_ACCESS, DOMAIN, SCAN_INTERVAL
 _LOGGER = logging.getLogger(__name__)
 
 STORAGE_VERSION = 1
+# Calls with answers that look different, used by check_parallel.
+CHECK_CALLS = (
+    ("SYNO.Core.DDNS.ExtIP", "list"),
+    ("SYNO.Core.DDNS.Record", "list"),
+    ("SYNO.Mesh.System.Info", "get"),
+)
 PARALLEL_CALLS = 3  # simultaneous requests to the router
 
 
@@ -364,6 +370,7 @@ def _isolate_call_params(http: Any) -> None:
     def call(endpoint: str, api: str, method: str, version: int = 1, params: dict | None = None, **kwargs: Any) -> Any:
         return original(endpoint, api, method, version, params=dict(params or {}), **kwargs)
 
+    http.original_call = original  # kept for check_parallel, which shows what the library does on its own
     http.call = call
 
 
@@ -404,6 +411,58 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def available_apis(self) -> set[str] | None:
         """Return the API names offered by the router, if known."""
         return self._available_apis
+
+    def check_parallel(self, rounds: int = 10) -> list[str]:
+        """Ask three different questions at the same time, with and without the per-call fix.
+
+        Read-only. Compares each answer with the one given when asked alone and counts
+        the answers that are another call's: that proves, on this very router, whether
+        the library mixes up calls made together.
+        """
+        http = self.client.http
+        original = getattr(http, "original_call", None)
+        offered = self._available_apis
+        calls = [c for c in CHECK_CALLS if offered is None or c[0] in offered]
+        if original is None or len(calls) < 2:
+            return ["Parallel check: not available on this router"]
+
+        def shape(answer: Any) -> Any:
+            return "list" if isinstance(answer, list) else tuple(sorted(answer)) if isinstance(answer, dict) else type(answer).__name__
+
+        baseline: dict[str, Any] = {}
+        for api, method in calls:
+            try:
+                baseline[api] = shape(http.call(endpoint=self._endpoint(api), api=api, method=method, version=1))
+            except Exception as err:  # noqa: BLE001
+                return [f"Parallel check: {api} failed alone: {safe_error(err)}"]
+        if len(set(baseline.values())) < len(baseline):
+            return ["Parallel check: the questions have answers too alike to tell apart"]
+
+        def run(ask: Any) -> tuple[int, int, int]:
+            wrong = errors = total = 0
+
+            def one(item: tuple[str, str]) -> tuple[str, Any]:
+                api, method = item
+                try:
+                    return api, shape(ask(self._endpoint(api), api, method, 1))
+                except Exception:  # noqa: BLE001
+                    return api, None
+
+            with ThreadPoolExecutor(max_workers=len(calls)) as pool:
+                for _ in range(rounds):
+                    for api, got in pool.map(one, calls):
+                        total += 1
+                        if got is None:
+                            errors += 1
+                        elif got != baseline[api]:
+                            wrong += 1
+            return wrong, errors, total
+
+        lines = [f"Parallel check: {len(calls)} different calls at the same time, {rounds} rounds"]
+        for label, ask in (("library alone (no fix)", original), ("with the fix", http.call)):
+            wrong, errors, total = run(ask)
+            lines.append(f"  {label}: {wrong} of {total} answers were another call's answer, {errors} errors")
+        return lines
 
     @property
     def api_versions(self) -> dict[str, str]:

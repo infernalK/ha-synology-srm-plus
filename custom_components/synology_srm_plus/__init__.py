@@ -28,6 +28,7 @@ CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 SERVICE_EXPLORE_API = "explore_api"
 SERVICE_DEBUG_REPORT = "debug_report"
+SERVICE_CHECK_PARALLEL = "check_parallel"
 EXPLORE_SCHEMA = vol.Schema({vol.Optional("filter"): cv.string})
 
 type SrmConfigEntry = ConfigEntry[SrmCoordinator]
@@ -143,6 +144,17 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     )
     hass.services.async_register(
         DOMAIN, SERVICE_DEBUG_REPORT, _async_report, supports_response=SupportsResponse.ONLY
+    )
+
+    async def _async_check_parallel(call: ServiceCall) -> dict[str, str]:
+        """Read-only test of whether calls made together get each other's answers."""
+        lines: list[str] = []
+        for entry in hass.config_entries.async_loaded_entries(DOMAIN):
+            lines += await hass.async_add_executor_job(entry.runtime_data.check_parallel)
+        return {"report": chr(10).join(lines)}
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_CHECK_PARALLEL, _async_check_parallel, supports_response=SupportsResponse.ONLY
     )
     return True
 

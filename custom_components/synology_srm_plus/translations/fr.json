@@ -275,6 +275,10 @@
     "debug_report": {
       "name": "Rapport de débogage",
       "description": "Renvoie un court rapport texte (versions, routeurs, ports, adresse externe, statistiques de menaces, stockage, entités inconnues) sans noms, adresses ni adresses MAC. À lancer dans Outils de développement > Actions, puis à coller quand vous demandez de l'aide."
+    },
+    "check_parallel": {
+      "name": "Tester les appels simultanés",
+      "description": "Test en lecture seule : pose trois questions différentes au routeur en même temps, avec et sans le correctif, et compte les réponses qui appartiennent à une autre question. Dure une dizaine de secondes. À coller quand vous demandez de l'aide."
     }
   }
 }
