@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.14
+
+- *Explore API* service (filter `Traffic`): also logs the live traffic of each client by name.
+
 ## 0.5.13
 
 - *Explore API* service: with the filter `Traffic`, it now also probes per-device traffic calls with parameters, to find where the rate of wired clients (always 0 today) can be read.

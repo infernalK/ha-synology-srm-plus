@@ -488,6 +488,38 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     json.dumps(redact(result), default=str)[:1500],
                 )
             time.sleep(0.15)
+        self._explore_traffic_by_client()
+
+    def _explore_traffic_by_client(self) -> None:
+        """Log the live per-device traffic of each client, by name (read only)."""
+        names = {
+            str(c.get("mac")): f"{c.get('name')} [{c.get('group')}]"
+            for c in (getattr(self, "data", None) or {}).get("client_list") or []
+        }
+        for attempt in range(3):
+            try:
+                rows = self.client.http.call(
+                    endpoint=self._endpoint("SYNO.Core.NGFW.Traffic"),
+                    api="SYNO.Core.NGFW.Traffic",
+                    method="get",
+                    version=1,
+                    params={"mode": "net_l7", "interval": "live"},
+                )
+            except Exception as err:  # noqa: BLE001
+                _LOGGER.info("SRM live traffic: %s", safe_error(err))
+                return
+            summary = {}
+            for row in rows or []:
+                if not isinstance(row, dict):
+                    continue
+                mac = str(row.get("deviceID")).lower()
+                label = names.get(mac) or f"other ...{mac[-5:]}"
+                times = [rec.get("time") for rec in (row.get("recs") or [])]
+                summary[label] = [row.get("download"), row.get("upload"), times[-2:]]
+            _LOGGER.info(
+                "SRM live traffic #%d (%d rows): %s", attempt, len(rows or []), summary
+            )
+            time.sleep(3)
 
     def _call_endpoint(
         self, key: str, api: str, call: Any, warn: bool = True
