@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.13
+
+- *Explore API* service: with the filter `Traffic`, it now also probes per-device traffic calls with parameters, to find where the rate of wired clients (always 0 today) can be read.
+
 ## 0.5.12
 
 - After the first install, a notification invites you to reload the page without cache so the dashboard cards show up (also documented in the README).
