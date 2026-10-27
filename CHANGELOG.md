@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.17
+
+- Safe Access: the profile of a network, which SRM names `$lbr0$`, `$lbr2$`..., now takes the name of that network (for example *Primary Network*), read from the router's local networks. Entity ids are unchanged.
+- Router card: with several routers it now shows one card per router (it mixed their ports, storage and addresses, and could pick a secondary router that has no external IP). A router without storage no longer shows 0 %.
+- External IP: if no `WAN` entry carries an address, any entry that has one is used.
+
 ## 0.5.16
 
 - Wired clients: the router's live traffic list is empty on the first call after a pause (it only fills while being asked), so an empty answer is now asked again after two seconds.

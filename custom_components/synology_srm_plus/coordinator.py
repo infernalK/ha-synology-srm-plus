@@ -193,6 +193,17 @@ ENDPOINTS: dict[str, tuple[str, Callable[[synology_srm.Client], Any], int]] = {
         _raw("SYNO.SafeAccess.AccessControl.Profile"),
         10,
     ),
+    # Names of the local networks: SRM calls the profile of a network "$lbr0$".
+    "local_networks": (
+        "SYNO.Core.Network.LocalNetwork",
+        _raw("SYNO.Core.Network.LocalNetwork", "list"),
+        10,
+    ),
+    "safe_interfaces": (
+        "SYNO.SafeAccess.AccessControl.ConfigGroup.Interface",
+        _raw("SYNO.SafeAccess.AccessControl.ConfigGroup.Interface"),
+        10,
+    ),
     "safe_stats": (
         "SYNO.SafeAccess.Overview.Statistics",
         _raw("SYNO.SafeAccess.Overview.Statistics"),
@@ -602,6 +613,7 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             results.get("clients"), results.get("wifi_devices"), results.get("traffic_live")
         )
         results["client_list"], results["offline_list"] = normalized or (None, None)
+        self._name_network_profiles(results)
         self._annotate_safe_profiles(results)
         _LOGGER.debug(
             "SRM update: %d calls in %.1f s (%d failed)",
@@ -610,6 +622,35 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             failures,
         )
         return results
+
+    @staticmethod
+    def _name_network_profiles(results: dict[str, Any]) -> None:
+        """Give the Safe Access profile of a network ("$lbr0$") the network's name."""
+        payload = results.get("safe_profiles")
+        profiles = payload.get("profiles") if isinstance(payload, dict) else None
+        if not isinstance(profiles, list):
+            return
+        lans = (results.get("local_networks") or {}).get("lans")
+        groups = (results.get("safe_interfaces") or {}).get("config_groups")
+        lan_names = {
+            lan.get("id"): lan.get("name") for lan in lans or [] if isinstance(lan, dict) and lan.get("name")
+        }
+        interfaces = {
+            g.get("config_group_id"): g.get("interfaces") or []
+            for g in groups or []
+            if isinstance(g, dict)
+        }
+        renamed: list[Any] = []
+        for profile in profiles:
+            name = profile.get("name") if isinstance(profile, dict) else None
+            if isinstance(name, str) and len(name) > 2 and name[0] == name[-1] == "$":
+                found = next(
+                    (lan_names[i] for i in interfaces.get(profile.get("profile_id"), []) if i in lan_names),
+                    None,
+                )
+                profile = {**profile, "name": found or name.strip("$")}
+            renamed.append(profile)
+        results["safe_profiles"] = {**payload, "profiles": renamed}
 
     @staticmethod
     def _annotate_safe_profiles(results: dict[str, Any]) -> None:

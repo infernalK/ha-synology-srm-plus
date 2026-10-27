@@ -164,6 +164,25 @@ function integrationEntities(hass, deviceId) {
   return out;
 }
 
+/** Same, one group per router (device), sorted by name. */
+function integrationDevices(hass, deviceId) {
+  const byDevice = new Map();
+  for (const entry of Object.values(hass.entities || {})) {
+    if (entry.platform !== PLATFORM) continue;
+    if (deviceId && entry.device_id !== deviceId) continue;
+    const state = hass.states[entry.entity_id];
+    if (!state) continue;
+    const found = byDevice.get(entry.device_id) || {};
+    byDevice.set(entry.device_id, found);
+    (found[entry.translation_key || entry.entity_id] ||= []).push(state);
+  }
+  const nameOf = (id) => {
+    const device = (hass.devices || {})[id];
+    return (device && (device.name_by_user || device.name)) || '';
+  };
+  return [...byDevice].map(([id, found]) => ({ id, found, name: nameOf(id) })).sort((a, b) => a.name.localeCompare(b.name));
+}
+
 const STYLE = `
   :host { display: block; min-width: 0; }
   ha-card { padding: 16px; min-width: 0; box-sizing: border-box; overflow: hidden; }
@@ -254,18 +273,32 @@ class SynologySrmRouterCard extends SrmBaseCard {
   _update() {
     const hass = this._hass;
     if (!hass || !this._config) return;
-    const found = integrationEntities(hass, this._config.device_id);
-    const sig = Object.values(found).flat().map((s) => s.entity_id + s.last_updated).join('|') + (hass.language || '');
+    const devices = integrationDevices(hass, this._config.device_id);
+    const sig = devices.map((d) => Object.values(d.found).flat().map((s) => s.entity_id + s.last_updated).join('|')).join('#') + (hass.language || '');
     if (sig === this._sig) return;
     this._sig = sig;
-    this._render(found);
+    this._render(devices);
   }
 
-  _render(found) {
+  /** One card per router when several are configured (and no device_id is set). */
+  _render(devices) {
+    const hass = this._hass;
+    const multiple = devices.length > 1;
+    const html = devices.map((d) => this._cardHtml(d.found, multiple ? d.name : '')).join('<div style="height:8px"></div>');
+    this.shadowRoot.innerHTML = `<style>${STYLE}</style>${html || this._cardHtml({}, '')}`;
+    this.shadowRoot.querySelectorAll('[data-entity]').forEach((el) =>
+      el.addEventListener('click', () => this._moreInfo(el.dataset.entity)));
+  }
+
+  _cardHtml(found, deviceName) {
     const hass = this._hass;
     const t = strings(hass);
     const isNode = (st, n) => String(st.attributes.node) === String(n);
-    const first = (key) => (found[key] || []).find((st) => isNode(st, 0)) || (found[key] || [])[0];
+    const known = (st) => st && !['unknown', 'unavailable', ''].includes(st.state);
+    const first = (key) => {
+      const list = found[key] || [];
+      return list.find((st) => isNode(st, 0) && known(st)) || list.find(known) || list.find((st) => isNode(st, 0)) || list[0];
+    };
     const all = (key) => found[key] || [];
     const bandRx = mapBy(all('band_rx'), 'band');
     const bandTx = mapBy(all('band_tx'), 'band');
@@ -281,8 +314,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
     };
 
     if (!Object.keys(found).length) {
-      this.shadowRoot.innerHTML = `<style>${STYLE}</style><ha-card><div class="empty">${esc(t.no_data)}</div></ha-card>`;
-      return;
+      return `<ha-card><div class="empty">${esc(t.no_data)}</div></ha-card>`;
     }
 
     const model = first('model');
@@ -352,7 +384,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
     const storage = all('storage_utilization')
       .map((s) => {
         const v = Number(s.state);
-        if (isNaN(v)) return '';
+        if (isNaN(v) || v === 0) return ''; // routers without storage report 0 %
         return `<div class="tile" data-entity="${esc(s.entity_id)}"><div class="k">${esc(s.attributes.kind || '')} ${esc(s.attributes.device || '')}</div><div class="v">${v}%</div><div class="bar"><span style="width:${Math.min(100, v)}%;background:${level(v, 70, 90)}"></span></div></div>`;
       })
       .join('');
@@ -407,11 +439,11 @@ class SynologySrmRouterCard extends SrmBaseCard {
       })
       .join('');
 
-    this.shadowRoot.innerHTML = `<style>${STYLE}</style>
+    return `
       <ha-card>
         <div class="head">
           <ha-icon icon="mdi:router-wireless"></ha-icon>
-          <div><div class="title">${esc(this._config.title || (model ? model.state : t.router))}</div><div class="sub">${esc(sub)}</div></div>
+          <div><div class="title">${esc(this._config.title || deviceName || (model ? model.state : t.router))}</div><div class="sub">${esc(sub)}</div></div>
           <div class="badges">${badges}</div>
         </div>
         <div class="gauges">${gauge(t.cpu, first('cpu_usage'), 60, 85)}${gauge(t.memory, first('memory_usage'), 70, 90)}${gauge(t.swap, first('swap_usage'), 40, 70)}</div>
@@ -423,8 +455,6 @@ class SynologySrmRouterCard extends SrmBaseCard {
         <div class="grid">${tile(t.external, ext4)}${tile('IPv6', ext6)}${tile(t.mode, mode)}${tile(t.offline_clients, first('clients_offline'))}${links}</div>${portSpeeds ? `<h3>${esc(t.ports)}</h3><div class="grid">${portSpeeds}</div>` : ''}
         ${usb || storage ? `<h3>${esc(t.storage)}</h3><div class="grid">${usb}${storage}</div>` : ''}
       </ha-card>`;
-    this.shadowRoot.querySelectorAll('[data-entity]').forEach((el) =>
-      el.addEventListener('click', () => this._moreInfo(el.dataset.entity)));
   }
 }
 

@@ -48,6 +48,18 @@ def _num(value: Any, scale: float = 1) -> float | int | None:
     return round(value * scale, 2) if scale != 1 else value
 
 
+def _external(d: dict[str, Any], field: str) -> Any:
+    """External address: the WAN entry, else any entry that has one."""
+    items = d.get("external_ip")
+    wan = _find(items, type="WAN") or {}
+    if wan.get(field):
+        return wan[field]
+    return next(
+        (i[field] for i in items if isinstance(i, dict) and i.get(field)) if isinstance(items, list) else iter(()),
+        None,
+    )
+
+
 def _find(items: Any, **match: Any) -> dict[str, Any] | None:
     """Find the first dict in a list whose items match."""
     if not isinstance(items, list):
@@ -173,7 +185,7 @@ STATIC_SENSORS: tuple[SrmSensorDescription, ...] = (
     SrmSensorDescription(
         key="external_ipv4",
         translation_key="external_ipv4",
-        value_fn=lambda d: (_find(d.get("external_ip"), type="WAN") or {}).get("ip") or None,
+        value_fn=lambda d: _external(d, "ip"),
         attrs_fn=lambda d: {
             "ddns_hostnames": [
                 r["hostname"]
@@ -186,8 +198,7 @@ STATIC_SENSORS: tuple[SrmSensorDescription, ...] = (
     SrmSensorDescription(
         key="external_ipv6",
         translation_key="external_ipv6",
-        value_fn=lambda d: (_find(d.get("external_ip"), type="WAN") or {}).get("ipv6")
-        or None,
+        value_fn=lambda d: _external(d, "ipv6"),
     ),
     SrmSensorDescription(
         key="traffic_live",

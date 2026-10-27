@@ -243,6 +243,19 @@ def main() -> int:
         if values.get(key) != want:
             errors.append(f"{key}: expected {want!r}, got {values.get(key)!r}")
 
+    # the profile of a network ($lbr0$) takes the network's name
+    named = {
+        "safe_profiles": {"profiles": [
+            {"profile_id": 6, "name": "$lbr0$"}, {"profile_id": 7, "name": "$lbr3$"}, {"profile_id": 8, "name": "Kids"}]},
+        "local_networks": {"lans": [{"id": "br0", "name": "Primary Network"}, {"id": "gbr0", "name": "Guest Network"}]},
+        "safe_interfaces": {"config_groups": [
+            {"config_group_id": 6, "interfaces": ["br0", "lbr0"]}, {"config_group_id": 7, "interfaces": []}]},
+    }
+    coordinator.SrmCoordinator._name_network_profiles(named)  # noqa: SLF001
+    got = [p["name"] for p in named["safe_profiles"]["profiles"]]
+    if got != ["Primary Network", "lbr3", "Kids"]:
+        errors.append(f"network profile names: {got!r}")
+
     print(f"{len(descriptions)} descriptions checked")
     for error in errors:
         print("ERROR", error)
