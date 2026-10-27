@@ -453,6 +453,41 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if done:
                     break
         _LOGGER.info("SRM explore finished: %d answered out of %d APIs", ok, len(wanted))
+        if name_filter and "traffic" in name_filter.lower():
+            self._explore_traffic_probes()
+
+    def _explore_traffic_probes(self) -> None:
+        """Try per-device traffic calls with parameters (read only, results logged)."""
+        probes = [
+            ("SYNO.Core.NGFW.Traffic", {"mode": mode, "interval": "live"})
+            for mode in ("net", "net_l7", "dev", "device", "net_dev", "mac")
+        ] + [
+            ("SYNO.Core.NGFW.Traffic.Device", {"interval": "live"}),
+            ("SYNO.Core.NGFW.Traffic.Device", {"mode": "net", "interval": "live"}),
+            ("SYNO.Core.NGFW.Traffic.Device", {"mode": "dev", "interval": "live"}),
+            ("SYNO.Core.Network.NSM.Device", {"conntype": "ethernet"}),
+        ]
+        for api, params in probes:
+            if api not in (self._available_apis or ()):
+                continue
+            try:
+                result = self.client.http.call(
+                    endpoint=self._endpoint(api),
+                    api=api,
+                    method="get",
+                    version=1,
+                    params=params,
+                )
+            except Exception as err:  # noqa: BLE001 - probing unknown parameters
+                _LOGGER.info("SRM probe %s %s: %s", api, params, safe_error(err))
+            else:
+                _LOGGER.info(
+                    "SRM probe OK %s %s: %s",
+                    api,
+                    params,
+                    json.dumps(redact(result), default=str)[:1500],
+                )
+            time.sleep(0.15)
 
     def _call_endpoint(
         self, key: str, api: str, call: Any, warn: bool = True
