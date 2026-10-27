@@ -62,6 +62,8 @@ WATCHED_KEYS = {
     "threat_events_7d",
 }
 WATCHED_ATTRS = ("node", "port", "kind", "device", "volume", "link")
+# Keys whose state is an address: report only whether it is known.
+ADDRESS_KEYS = {"external_ipv4", "external_ipv6"}
 
 
 def redact_data(data: Any) -> Any:
@@ -82,8 +84,12 @@ async def async_get_config_entry_diagnostics(
         key = ent.translation_key or ent.domain
         counts[key] += 1
         if key in WATCHED_KEYS and (state := hass.states.get(ent.entity_id)) is not None:
-            watched[ent.entity_id] = {
-                "state": state.state,
+            value = state.state
+            if key in ADDRESS_KEYS and value not in ("unknown", "unavailable"):
+                value = "set"
+            # Entity ids embed the router's address: key by type and index instead.
+            watched[f"{key}#{counts[key]}"] = {
+                "state": value,
                 **{a: state.attributes[a] for a in WATCHED_ATTRS if a in state.attributes},
             }
     return {
