@@ -94,6 +94,7 @@ async def async_get_config_entry_diagnostics(
             }
     return {
         "version": VERSION,
+        "probes": coordinator.probes,
         "entities_by_key": dict(sorted(counts.items())),
         "watched_entities": watched,
         "config": redact_data(dict(entry.data)),

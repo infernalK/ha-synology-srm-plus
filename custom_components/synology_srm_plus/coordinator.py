@@ -37,6 +37,10 @@ STORAGE_VERSION = 1
 PARALLEL_CALLS = 3  # simultaneous requests to the router
 
 
+# Answers that must hold this key; if one doesn't, the call is probed (see _verify_answer).
+EXPECTED_KEYS = {"tps_trends": "trends"}
+
+
 def _raw(
     api: str, method: str = "get", version: int = 1
 ) -> Callable[[synology_srm.Client], Any]:
@@ -367,6 +371,9 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._poll = 0
         self._warned: set[str] = set()
         self._cache: dict[str, Any] = {}
+        # Endpoints whose answer lacked its key: what was tried, and the version that worked.
+        self.probes: dict[str, Any] = {}
+        self._versions: dict[str, int] = {}
         # Last time each client was seen online (kept across restarts).
         self._store: Store[dict[str, str]] = Store(
             hass, STORAGE_VERSION, f"{DOMAIN}_{entry.entry_id}_last_seen"
@@ -560,6 +567,47 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return key, self._cache.get(key), False
         return key, result, True
 
+    def _verify_answer(self, key: str, api: str, result: Any) -> Any:
+        """Make sure an answer holds the key it must; else probe other ways to ask.
+
+        Some routers answer a call with another API's payload. Ask again alone, then
+        with each version the router lists, keep the one that works and report what
+        was tried once (in the log and in diagnostics).
+        """
+        expect = EXPECTED_KEYS.get(key)
+        if expect is None:
+            return result
+        known = self._versions.get(key)
+        if known is None and isinstance(result, dict) and expect in result:
+            return result
+        if known is None and key in self.probes:
+            return result  # already probed, nothing worked: do not repeat every poll
+        info = self._api_info.get(api) if isinstance(self._api_info, dict) else None
+        newest = int(info.get("maxVersion") or 1) if isinstance(info, dict) else 1
+        tried: dict[str, Any] = {}
+        for version in [known] if known else [1, *range(2, newest + 1)]:
+            try:
+                answer = self.client.http.call(
+                    endpoint=self._endpoint(api), api=api, method="get", version=version
+                )
+            except Exception as err:  # noqa: BLE001
+                tried[f"v{version}"] = f"error: {safe_error(err)}"
+                continue
+            tried[f"v{version}"] = sorted(answer) if isinstance(answer, dict) else type(answer).__name__
+            if isinstance(answer, dict) and expect in answer:
+                if known is None:
+                    self._versions[key] = version
+                    self.probes[key] = {"version": version, "newest": newest, "tried": tried}
+                    _LOGGER.info(
+                        "SRM %s (%s): the first answer had no %r; version %d, asked alone, works",
+                        key, api, expect, version,
+                    )
+                return answer
+        if known is None:
+            self.probes[key] = {"version": None, "newest": newest, "tried": tried}
+            _LOGGER.info("SRM %s (%s) never answered with %r: %s", key, api, expect, tried)
+        return result
+
     def _fetch(self) -> dict[str, Any]:
         """Call every endpoint that is due and the router offers (blocking).
 
@@ -599,6 +647,10 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             outcomes = [
                 o if o[2] else self._call_endpoint(*by_key[o[0]]) for o in outcomes
             ]
+        apis = {k: a for k, a, _ in due}
+        outcomes = [
+            (k, self._verify_answer(k, apis[k], r) if ok else r, ok) for k, r, ok in outcomes
+        ]
         failures = 0
         for key, result, ok in outcomes:
             results[key] = result
