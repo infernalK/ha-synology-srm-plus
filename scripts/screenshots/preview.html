@@ -1,0 +1,143 @@
+<!doctype html>
+<!--
+  Preview of the dashboard cards with neutral sample data, used to make the pictures
+  of the README (see render.py). Open it as preview.html?card=router or ?card=clients.
+  Home Assistant's own elements are replaced by stand-ins: the icons are emoji and
+  the colors are those of the default light theme.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<style>
+  :root {
+    --primary-color: #03a9f4; --text-primary-color: #fff; --primary-text-color: #212121;
+    --secondary-text-color: #727272; --divider-color: #e0e0e0; --card-background-color: #fff;
+    --secondary-background-color: #f0f0f0; --success-color: #43a047; --warning-color: #ffa600;
+    --error-color: #db4437; --info-color: #2196f3; --accent-color: #ff9800;
+  }
+  body { margin: 0; padding: 0; background: #fff; font-family: Roboto, "Segoe UI", Arial, sans-serif; color: var(--primary-text-color); }
+  #host { display: inline-block; }
+</style>
+</head>
+<body>
+<div id="host"></div>
+<script>
+(() => {
+const STAND_INS = {
+  'mdi:router-wireless': '📶', 'mdi:lan-connect': '🌐', 'mdi:lan-disconnect': '⛔', 'mdi:laptop': '💻',
+  'mdi:cctv': '📷', 'mdi:cellphone': '📱', 'mdi:tablet': '📱', 'mdi:nas': '🗄', 'mdi:power-plug': '🔌',
+  'mdi:ethernet-cable': '🔌', 'mdi:devices': '📟', 'mdi:desktop-tower-monitor': '🖥', 'mdi:thermostat': '🌡',
+};
+class HaIcon extends HTMLElement {
+  connectedCallback() { this.style.display = 'inline-block'; this.textContent = STAND_INS[this.getAttribute('icon')] || '•'; this.style.fontSize = 'var(--mdc-icon-size, 24px)'; this.style.lineHeight = '1'; }
+}
+class HaCard extends HTMLElement {
+  connectedCallback() { Object.assign(this.style, { display: 'block', background: 'var(--card-background-color)', borderRadius: '12px', color: 'var(--primary-text-color)' }); }
+}
+customElements.define('ha-icon', HaIcon);
+customElements.define('ha-card', HaCard);
+})();
+</script>
+<script src="../../custom_components/synology_srm_plus/www/synology-srm-card.js"></script>
+<script>
+(() => {
+const params = new URLSearchParams(location.search);
+const kind = params.get('card') || 'router';
+const hass = { entities: {}, states: {}, devices: { d1: { name: 'RT2600ac' } }, language: 'en' };
+let n = 0;
+const add = (key, state, attributes = {}) => {
+  const id = `sensor.demo_${key}_${++n}`;
+  hass.entities[id] = { entity_id: id, platform: 'synology_srm_plus', device_id: 'd1', translation_key: key };
+  hass.states[id] = { entity_id: id, state: String(state), attributes, last_updated: id };
+  return id;
+};
+const KBIT = 125, MBIT = 125000; // bytes per second
+
+/* ---- the clients (neutral data: documentation addresses 192.0.2.0/24) ---- */
+const wifi = (name, ip, band, ssid, profile, type, signal, rate, down, up) => ({ name, mac: 'aa:bb:cc:00:00:' + (10 + n++), ip, group: band, band, ssid, wifi_profile: profile, device_type: type, signal, link_rate: rate, download: down, upload: up });
+const wired = (name, ip, type, down, up) => ({ name, mac: 'aa:bb:cc:00:01:' + (10 + n++), ip, group: 'Wired', device_type: type, download: down, upload: up });
+const online = [
+  wifi('Laptop', '192.0.2.40', '5G', 'MyHome-5G', 'Home', 'notebook', 100, 866, 36 * MBIT, 2.3 * MBIT),
+  wifi('Camera', '192.0.2.101', '2.4G', 'MyHome', 'IoT', 'ipcam', 70, 58, 49 * KBIT, 336 * KBIT),
+  wired('DNS server', '192.0.2.10', 'default', 18 * KBIT, 14 * KBIT),
+  wifi('Thermostat', '192.0.2.60', '2.4G', 'MyHome', 'IoT', 'default', 25, 43, 103, 125),
+  wifi('Smart plug', '192.0.2.89', '2.4G', 'MyHome', 'IoT', 'plug', 90, 65, 12 * KBIT, 13 * KBIT),
+  wifi('Tablet', '192.0.2.41', '5G', 'MyHome-5G', 'Home', 'tablet', 90, 866, 10 * KBIT, 4 * KBIT),
+  wired('NAS', '192.0.2.11', 'nas', 0, 0),
+];
+const offline = [
+  { name: 'Old phone', mac: 'aa:bb:cc:00:02:01', group: 'Offline', device_type: 'phone', last_seen: new Date(Date.now() - 3 * 86400000).toISOString() },
+  { name: 'Printer', mac: 'aa:bb:cc:00:02:02', group: 'Offline', device_type: 'printer', last_seen: new Date(Date.now() - 20 * 3600000).toISOString() },
+];
+const sum = (list, f) => list.reduce((a, c) => a + (c[f] || 0), 0);
+const byGroup = (g) => online.filter((c) => c.group === g);
+const meta = { '2.4G': { channel: 2, average_signal: 70 }, '5G': { channel: 36, average_signal: 70 } };
+
+function addClients() {
+  add('clients_online', online.length);
+  for (const g of ['2.4G', '5G', 'Wired']) {
+    const cl = byGroup(g);
+    add('clients_group', cl.length, { integration: 'synology_srm_plus', group: g, clients: cl, ssids: [...new Set(cl.map((c) => c.ssid).filter(Boolean))], ...(meta[g] || {}) });
+  }
+  add('clients_offline', offline.length, { integration: 'synology_srm_plus', group: 'Offline', clients: offline });
+}
+
+if (kind === 'clients') {
+  addClients();
+  const card = document.createElement('synology-srm-clients-card');
+  card.setConfig({ title: 'Clients', max_height: 520 });
+  card.hass = hass;
+  document.getElementById('host').style.width = '540px';
+  document.getElementById('host').appendChild(card);
+} else {
+  const B = 'B/s';
+  add('model', 'RT2600ac', { node: '0' }); add('firmware', 'SRM 1.3.1', { node: '0' }); add('uptime', 5.9333, { node: '0', unit_of_measurement: 'h' });
+  add('connection_status', 'normal', { family: 'IPv4' }); add('connection_status', 'normal', { family: 'IPv6' });
+  add('cpu_usage', 32); add('memory_usage', 51); add('swap_usage', 7);
+  add('load_1min', 1.15); add('load_5min', 1.12); add('load_15min', 1.10);
+  add('router_rx', 1.8 * MBIT, { node: '0', unit_of_measurement: B }); add('router_tx', 22 * MBIT, { node: '0', unit_of_measurement: B });
+  add('connected_devices', 19, { node: '0' });
+  addClients();
+  const groups = { Total: online, '2.4G': byGroup('2.4G'), '5G': byGroup('5G'), Wired: byGroup('Wired') };
+  for (const [g, cl] of Object.entries(groups)) {
+    add('client_rx', sum(cl, 'download'), { group: g, unit_of_measurement: B }); add('client_tx', sum(cl, 'upload'), { group: g, unit_of_measurement: B });
+  }
+  add('band_rx', 549 * KBIT, { band: '2.4G', unit_of_measurement: B }); add('band_tx', 64 * KBIT, { band: '2.4G', unit_of_measurement: B });
+  add('band_rx', 42 * KBIT, { band: '5G', unit_of_measurement: B }); add('band_tx', 46 * KBIT, { band: '5G', unit_of_measurement: B });
+  for (const net of ['Home', 'IoT']) {
+    const cl = online.filter((c) => c.wifi_profile === net);
+    add('clients_network', cl.length, { network: net, bands: [...new Set(cl.map((c) => c.band))], ssids: [...new Set(cl.map((c) => c.ssid))] });
+    add('network_rx', sum(cl, 'download'), { network: net, unit_of_measurement: B }); add('network_tx', sum(cl, 'upload'), { network: net, unit_of_measurement: B });
+  }
+  add('external_ipv4', '203.0.113.7'); add('external_ipv6', '2001:db8:100:1::7'); add('network_mode', 'router');
+  for (const [i, ip] of [['br0', '192.0.2.1'], ['eth4', '203.0.113.7']]) {
+    add('link_status', 'connected', { interface: i }); add('link_speed', 1000, { interface: i, unit_of_measurement: 'Mbit/s' }); add('link_ip', ip, { interface: i });
+  }
+  // two routers: the main one and a repeater, each with its own ports
+  add('node_status', 'good', { node: '0', name: 'RT2600ac' }); add('node_status', 'good', { node: '1', name: 'Upstairs (MR2200ac)' });
+  add('model', 'MR2200ac', { node: '1' }); add('firmware', 'SRM 1.3.1', { node: '1' }); add('uptime', 53, { node: '1', unit_of_measurement: 'h' });
+  add('connected_devices', 4, { node: '1' }); add('router_rx', 90 * KBIT, { node: '1', unit_of_measurement: B }); add('router_tx', 480 * KBIT, { node: '1', unit_of_measurement: B });
+  for (const [node, ports] of [['0', [['WAN', 1000], ['LAN 1', 1000], ['LAN 2', 0], ['LAN 3', 100], ['LAN 4', 0]]], ['1', [['WAN', 1000], ['LAN 1', 0]]]]) {
+    for (const [p, speed] of ports) add('port_speed', speed, { node, port: p, link: speed > 0, unit_of_measurement: 'Mbit/s' });
+  }
+  add('usb_usage', 28.7, { volume: 'usbshare' }); add('usb_used', 4180, { volume: 'usbshare', unit_of_measurement: 'MiB' }); add('usb_total', 14588, { volume: 'usbshare', unit_of_measurement: 'MiB' });
+  add('storage_utilization', 3, { kind: 'volume', device: 'md0' });
+  const card = document.createElement('synology-srm-router-card');
+  card.setConfig({});
+  card.hass = hass;
+  document.getElementById('host').style.width = '490px';
+  document.getElementById('host').appendChild(card);
+}
+// the page height, read by render.py
+setTimeout(() => {
+  const host = document.getElementById('host');
+  const top = host.getBoundingClientRect().top;
+  document.body.dataset.h = Math.ceil(host.getBoundingClientRect().height);
+  const root = host.firstElementChild && host.firstElementChild.shadowRoot;
+  const sections = root ? [...root.querySelectorAll('h3')].map((h) => [h.textContent, Math.round(h.getBoundingClientRect().top - top)]) : [];
+  document.body.dataset.sections = JSON.stringify(sections);
+}, 300);
+})();
+</script>
+</body>
+</html>

@@ -134,6 +134,10 @@ If the values look wrong after an update, reload the page without cache: the foo
 
 This was built on a single router, so feedback from other models is very welcome. Open an issue using the template and attach the **diagnostics file**: *Settings → Devices & services → Synology SRM Plus → ⋮ → Download diagnostics*. It lists the API names your router offers (with their versions) and the raw payloads, with addresses, host names, serial number and credentials redacted, plus the same short report as `debug_report`. The state of the main entities is listed without entity ids or external addresses. Please still skim it before posting.
 
+## Changelog
+
+The changes of every version are in [CHANGELOG.md](CHANGELOG.md) (English) and [CHANGELOG.fr.md](CHANGELOG.fr.md) (French).
+
 ## License
 
 MIT, see [LICENSE](LICENSE).

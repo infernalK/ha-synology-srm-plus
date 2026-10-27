@@ -11,12 +11,15 @@ views:
       - type: grid
         cards:
           - type: custom:synology-srm-router-card
+            # traffic_by: both        # bands | networks | both: client traffic per Wi-Fi band, per Wi-Fi network (IOT...) or both
+            # device_id: <id>         # only if you have several routers
       - type: grid
         cards:
           - type: custom:synology-srm-clients-card
             title: Clients
             sort_by: download
             max_height: 700
+            # filter_by: both         # connection | network | both: filter chips per connection (band, wired) and per Wi-Fi network
       - type: grid
         cards:
           - type: custom:synology-srm-threat-card

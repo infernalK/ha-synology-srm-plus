@@ -134,6 +134,10 @@ Si les valeurs semblent fausses après une mise à jour, rechargez la page sans 
 
 Cette intégration a été construite sur un seul routeur : les retours d'autres modèles sont les bienvenus. Ouvrez un ticket avec le modèle fourni et joignez le **fichier de diagnostic** : *Paramètres → Appareils et services → Synology SRM Plus → ⋮ → Télécharger les diagnostics*. Il liste les API que votre routeur propose (avec leurs versions) et les données brutes, avec adresses, noms d'hôtes, numéro de série et identifiants masqués, plus le même court rapport que `debug_report`. L'état des entités principales y figure sans leurs identifiants ni les adresses externes. Relisez-le tout de même avant de le publier.
 
+## Historique des versions
+
+Les changements de chaque version sont dans [CHANGELOG.fr.md](CHANGELOG.fr.md) (français) et [CHANGELOG.md](CHANGELOG.md) (anglais).
+
 ## Licence
 
 MIT, voir [LICENSE](LICENSE).
