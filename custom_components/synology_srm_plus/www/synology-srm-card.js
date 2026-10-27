@@ -340,9 +340,14 @@ class SynologySrmRouterCard extends SrmBaseCard {
     const rx = Object.fromEntries(all('client_rx').map((s) => [s.attributes.group, s]));
     const tx = Object.fromEntries(all('client_tx').map((s) => [s.attributes.group, s]));
     const groupSensors = all('clients_group');
+    // traffic_by: bands | networks | both (default); Total and Wired are always shown
+    const trafficBy = this._config.traffic_by;
+    const showBands = trafficBy !== 'networks';
+    const showNetworks = trafficBy !== 'bands';
     const groupOrder = ['Total', ...Object.keys(rx).filter((g) => g !== 'Total').sort()];
     const trafficTiles = groupOrder
       .filter((g) => rx[g] || tx[g])
+      .filter((g) => showBands || g === 'Total' || g === 'Wired')
       .map((g) => {
         const count = g === 'Total' ? first('clients_online') : groupSensors.find((s) => s.attributes.group === g);
         const label = g === 'Total' ? t.total : g === 'Wired' ? t.wired : `${t.wifi} ${g}`;
@@ -355,7 +360,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
     const netRx = Object.fromEntries(all('network_rx').map((s) => [s.attributes.network, s]));
     const netTx = Object.fromEntries(all('network_tx').map((s) => [s.attributes.network, s]));
     const netCount = Object.fromEntries(all('clients_network').map((s) => [s.attributes.network, s]));
-    const networkTiles = [...new Set([...Object.keys(netRx), ...Object.keys(netTx)])]
+    const networkTiles = (showNetworks ? [...new Set([...Object.keys(netRx), ...Object.keys(netTx)])] : [])
       .sort()
       .filter((n) => netCount[n] && Number(netCount[n].state) > 0)
       .map((n) => {
