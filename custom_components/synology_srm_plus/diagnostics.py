@@ -6,7 +6,7 @@ from collections import Counter
 from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
-from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME
+from homeassistant.const import CONF_HOST, CONF_PASSWORD, CONF_USERNAME, __version__ as HA_VERSION
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
@@ -87,6 +87,7 @@ def build_report(
     counts: dict[str, int],
     unknown: dict[str, int],
     ha_version: str,
+    api_versions: dict[str, str] | None = None,
 ) -> str:
     """Short text with what is needed to debug the cards and sensors (no names, addresses or MACs)."""
     lines = [f"Synology SRM Plus {VERSION} - Home Assistant {ha_version}"]
@@ -117,6 +118,9 @@ def build_report(
     else:
         got = sorted(data["tps_trends"]) if isinstance(data.get("tps_trends"), dict) else data.get("tps_trends")
         lines.append(f"Threat statistics: NO 'trends' in the answer (keys: {got})")
+    tps = {a.removeprefix("SYNO."): v for a, v in (api_versions or {}).items() if a.startswith("SYNO.TPS.")}
+    if tps:
+        lines.append("  API versions offered: " + ", ".join(f"{a} v{v}" for a, v in tps.items()))
     for key, probe in probes.items():
         lines.append(f"  probe {key}: works with v{probe['version']}" if probe.get("version") else f"  probe {key}: nothing worked, tried {probe.get('tried')}")
     vols = [f"{v.get('id')} {round(100 * v['used'] / v['total'], 1)}%" for v in _volumes(data) if v.get("total")]
@@ -165,7 +169,7 @@ async def async_build_report(hass: HomeAssistant, entry: SrmConfigEntry) -> str:
     """Return the short text report of one entry."""
     coordinator = entry.runtime_data
     counts, unknown, _ = _entity_summary(hass, entry)
-    return build_report(coordinator.data or {}, coordinator.probes, counts, unknown, hass.config.version if hasattr(hass.config, "version") else "?")
+    return build_report(coordinator.data or {}, coordinator.probes, counts, unknown, HA_VERSION, coordinator.api_versions)
 
 
 async def async_get_config_entry_diagnostics(
@@ -178,6 +182,7 @@ async def async_get_config_entry_diagnostics(
     return {
         "version": VERSION,
         "report": (await async_build_report(hass, entry)).splitlines(),
+        "api_versions": coordinator.api_versions,
         "probes": coordinator.probes,
         "entities_by_key": dict(sorted(counts.items())),
         "watched_entities": watched,

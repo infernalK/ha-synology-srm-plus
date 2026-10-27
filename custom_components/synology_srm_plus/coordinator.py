@@ -387,6 +387,19 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Return the API names offered by the router, if known."""
         return self._available_apis
 
+    @property
+    def api_versions(self) -> dict[str, str]:
+        """Versions the router lists (min-max) for every API this integration calls."""
+        info = self._api_info if isinstance(self._api_info, dict) else {}
+        out: dict[str, str] = {}
+        for api, _call, _every in ENDPOINTS.values():
+            entry = info.get(api)
+            if isinstance(entry, dict):
+                out[api] = f"{entry.get('minVersion', '?')}-{entry.get('maxVersion', '?')}"
+            else:
+                out[api] = "not offered" if info else "unknown"
+        return dict(sorted(out.items()))
+
     async def _async_setup(self) -> None:
         """Load the persisted last-seen times."""
         self._last_seen = await self._store.async_load() or {}
