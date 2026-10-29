@@ -27,6 +27,12 @@ def needs_device_info(ha_version: str = HA_VERSION) -> bool:
     return AwesomeVersion(ha_version) >= _DEVICE_INFO_SINCE
 
 
+def client_mac(unique_id: str, entry_id: str) -> str:
+    """Return the MAC address of a tracker's unique ID (the MAC itself from HA 2026.11)."""
+    prefix = f"{entry_id}_client_"
+    return unique_id[len(prefix) :] if unique_id.startswith(prefix) else unique_id
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: SrmConfigEntry,
@@ -41,14 +47,10 @@ async def async_setup_entry(
     # Options changed: forget the trackers that are no longer wanted (no ghost entities).
     if not track_all:
         registry = er.async_get(hass)
-        prefix = f"{entry.entry_id}_client_"
         for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
-            unique_id = entity.unique_id
-            if (
-                entity.domain == "device_tracker"
-                and unique_id.startswith(prefix)
-                and unique_id[len(prefix) :] not in selected
-            ):
+            if entity.domain != "device_tracker":
+                continue
+            if client_mac(entity.unique_id, entry.entry_id) not in selected:
                 registry.async_remove(entity.entity_id)
 
     if not track_all and not selected:

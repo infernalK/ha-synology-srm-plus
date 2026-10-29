@@ -265,6 +265,11 @@ def main() -> int:
         if device_tracker.needs_device_info(version) is not want:
             errors.append(f"needs_device_info({version!r}) should be {want}")
 
+    # the tracker's unique ID is "<entry>_client_<mac>", or the bare MAC from HA 2026.11
+    for unique_id, want in (("e1_client_aa:bb:cc:dd:ee:ff", "aa:bb:cc:dd:ee:ff"), ("aa:bb:cc:dd:ee:ff", "aa:bb:cc:dd:ee:ff")):
+        if device_tracker.client_mac(unique_id, "e1") != want:
+            errors.append(f"client_mac({unique_id!r}) should be {want!r}")
+
     card = (ROOT / "custom_components/synology_srm_plus/www/synology-srm-card.js").read_text(encoding="utf-8")
     if f"const CARDS_VERSION = '{const.VERSION}'" not in card:
         errors.append("CARDS_VERSION in synology-srm-card.js differs from const.VERSION")
