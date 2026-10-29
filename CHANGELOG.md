@@ -2,6 +2,12 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## 0.5.24
+
+- Home Assistant 2026.11 and later: each client tracker now has its own device (identified by the client's MAC address and named after the client), which removes the warning that device trackers without device info will stop working in 2028.11. Older Home Assistant versions are left as they were.
+- A tracker you stop following is removed together with its device when nothing else uses it, and the unique ID no longer gets in the way of cleaning up trackers on 2026.11.
+- A client's device can be deleted from the UI; the router's own device cannot.
+
 ## 0.5.23
 
 - New action `synology_srm_plus.check_parallel` (Developer tools > Actions): a read-only test, about ten seconds long, that asks the router three different questions at the same time, with and without the fix of 0.5.21, and counts the answers that belong to another question. On a RT2600ac, the library alone returned about one answer in ten that was another call's answer; with the fix, none. Paste its result when asking for help.
