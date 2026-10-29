@@ -8,7 +8,7 @@ from awesomeversion import AwesomeVersion
 from homeassistant.components.device_tracker import ScannerEntity, SourceType
 from homeassistant.const import __version__ as HA_VERSION
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
@@ -33,6 +33,20 @@ def client_mac(unique_id: str, entry_id: str) -> str:
     return unique_id[len(prefix) :] if unique_id.startswith(prefix) else unique_id
 
 
+def _forget_empty_device(
+    hass: HomeAssistant, entry: SrmConfigEntry, device_id: str | None
+) -> None:
+    """Remove the device of a forgotten tracker, unless another entity still uses it."""
+    if device_id is None:
+        return
+    registry = er.async_get(hass)
+    if er.async_entries_for_device(registry, device_id, include_disabled_entities=True):
+        return
+    dr.async_get(hass).async_update_device(
+        device_id, remove_config_entry_id=entry.entry_id
+    )
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: SrmConfigEntry,
@@ -52,6 +66,7 @@ async def async_setup_entry(
                 continue
             if client_mac(entity.unique_id, entry.entry_id) not in selected:
                 registry.async_remove(entity.entity_id)
+                _forget_empty_device(hass, entry, entity.device_id)
 
     if not track_all and not selected:
         return
