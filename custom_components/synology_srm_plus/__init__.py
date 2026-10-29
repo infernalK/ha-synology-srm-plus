@@ -14,6 +14,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
@@ -182,3 +183,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: SrmConfigEntry) -> bool:
 async def async_unload_entry(hass: HomeAssistant, entry: SrmConfigEntry) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant, entry: SrmConfigEntry, device_entry: dr.DeviceEntry
+) -> bool:
+    """Let the user delete a client's device, never the router itself."""
+    return (DOMAIN, entry.entry_id) not in device_entry.identifiers
+
