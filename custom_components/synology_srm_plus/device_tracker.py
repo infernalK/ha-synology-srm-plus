@@ -107,6 +107,8 @@ class SrmClientTracker(CoordinatorEntity[SrmCoordinator], ScannerEntity):
             self._attr_device_info = DeviceInfo(
                 connections={(CONNECTION_NETWORK_MAC, mac)}, name=name
             )
+            # The device carries the client's name: the tracker is the device itself.
+            self._attr_name = None
 
     @property
     def entity_registry_enabled_default(self) -> bool:
