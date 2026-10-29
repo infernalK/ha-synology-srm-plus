@@ -105,7 +105,7 @@ class SrmClientTracker(CoordinatorEntity[SrmCoordinator], ScannerEntity):
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_client_{mac}"
         if needs_device_info():
             self._attr_device_info = DeviceInfo(
-                connections={(CONNECTION_NETWORK_MAC, mac)}
+                connections={(CONNECTION_NETWORK_MAC, mac)}, name=name
             )
 
     @property
