@@ -4,15 +4,27 @@ from __future__ import annotations
 
 from typing import Any
 
+from awesomeversion import AwesomeVersion
 from homeassistant.components.device_tracker import ScannerEntity, SourceType
+from homeassistant.const import __version__ as HA_VERSION
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import SrmConfigEntry
 from .const import CONF_TRACK_ALL, CONF_TRACK_CLIENTS, CONF_TRACKED_CLIENTS, DOMAIN
 from .coordinator import SrmCoordinator
+
+# From this Home Assistant version, a ScannerEntity without device info is reported
+# (to be refused in 2028.11). Older versions do not know about it: keep them as they were.
+_DEVICE_INFO_SINCE = AwesomeVersion("2026.11.0b0")
+
+
+def needs_device_info(ha_version: str = HA_VERSION) -> bool:
+    """Return whether this Home Assistant expects device info on a ScannerEntity."""
+    return AwesomeVersion(ha_version) >= _DEVICE_INFO_SINCE
 
 
 async def async_setup_entry(
@@ -74,6 +86,10 @@ class SrmClientTracker(CoordinatorEntity[SrmCoordinator], ScannerEntity):
         self._mac = mac
         self._attr_name = name
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_client_{mac}"
+        if needs_device_info():
+            self._attr_device_info = DeviceInfo(
+                connections={(CONNECTION_NETWORK_MAC, mac)}
+            )
 
     @property
     def entity_registry_enabled_default(self) -> bool:
