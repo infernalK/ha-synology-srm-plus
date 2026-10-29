@@ -2,6 +2,12 @@
 
 [English](CHANGELOG.md) · **Français**
 
+## 0.5.24
+
+- Home Assistant 2026.11 et suivants : chaque suivi de client a maintenant son propre appareil (identifié par l'adresse MAC du client et nommé d'après lui), ce qui supprime l'avertissement indiquant que les suivis d'appareils sans informations d'appareil cesseront de fonctionner en 2028.11. Les versions plus anciennes de Home Assistant restent comme avant.
+- Un suivi que vous arrêtez est supprimé avec son appareil quand plus rien d'autre ne l'utilise, et l'identifiant unique ne gêne plus le nettoyage des suivis sur la 2026.11.
+- L'appareil d'un client peut être supprimé depuis l'interface ; celui du routeur ne le peut pas.
+
 ## 0.5.23
 
 - Nouvelle action `synology_srm_plus.check_parallel` (Outils de développement > Actions) : un test en lecture seule, d'une dizaine de secondes, qui pose trois questions différentes au routeur en même temps, avec et sans le correctif de la 0.5.21, et compte les réponses qui appartiennent à une autre question. Sur un RT2600ac, la bibliothèque seule renvoyait environ une réponse sur dix qui était celle d'un autre appel ; avec le correctif, aucune. Collez son résultat quand vous demandez de l'aide.

@@ -4,15 +4,47 @@ from __future__ import annotations
 
 from typing import Any
 
+from awesomeversion import AwesomeVersion
 from homeassistant.components.device_tracker import ScannerEntity, SourceType
+from homeassistant.const import __version__ as HA_VERSION
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import device_registry as dr, entity_registry as er
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC, DeviceInfo
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import SrmConfigEntry
 from .const import CONF_TRACK_ALL, CONF_TRACK_CLIENTS, CONF_TRACKED_CLIENTS, DOMAIN
 from .coordinator import SrmCoordinator
+
+# From this Home Assistant version, a ScannerEntity without device info is reported
+# (to be refused in 2028.11). Older versions do not know about it: keep them as they were.
+_DEVICE_INFO_SINCE = AwesomeVersion("2026.11.0b0")
+
+
+def needs_device_info(ha_version: str = HA_VERSION) -> bool:
+    """Return whether this Home Assistant expects device info on a ScannerEntity."""
+    return AwesomeVersion(ha_version) >= _DEVICE_INFO_SINCE
+
+
+def client_mac(unique_id: str, entry_id: str) -> str:
+    """Return the MAC address of a tracker's unique ID (the MAC itself from HA 2026.11)."""
+    prefix = f"{entry_id}_client_"
+    return unique_id[len(prefix) :] if unique_id.startswith(prefix) else unique_id
+
+
+def _forget_empty_device(
+    hass: HomeAssistant, entry: SrmConfigEntry, device_id: str | None
+) -> None:
+    """Remove the device of a forgotten tracker, unless another entity still uses it."""
+    if device_id is None:
+        return
+    registry = er.async_get(hass)
+    if er.async_entries_for_device(registry, device_id, include_disabled_entities=True):
+        return
+    dr.async_get(hass).async_update_device(
+        device_id, remove_config_entry_id=entry.entry_id
+    )
 
 
 async def async_setup_entry(
@@ -29,15 +61,12 @@ async def async_setup_entry(
     # Options changed: forget the trackers that are no longer wanted (no ghost entities).
     if not track_all:
         registry = er.async_get(hass)
-        prefix = f"{entry.entry_id}_client_"
         for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
-            unique_id = entity.unique_id
-            if (
-                entity.domain == "device_tracker"
-                and unique_id.startswith(prefix)
-                and unique_id[len(prefix) :] not in selected
-            ):
+            if entity.domain != "device_tracker":
+                continue
+            if client_mac(entity.unique_id, entry.entry_id) not in selected:
                 registry.async_remove(entity.entity_id)
+                _forget_empty_device(hass, entry, entity.device_id)
 
     if not track_all and not selected:
         return
@@ -74,6 +103,12 @@ class SrmClientTracker(CoordinatorEntity[SrmCoordinator], ScannerEntity):
         self._mac = mac
         self._attr_name = name
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_client_{mac}"
+        if needs_device_info():
+            self._attr_device_info = DeviceInfo(
+                connections={(CONNECTION_NETWORK_MAC, mac)}, name=name
+            )
+            # The device carries the client's name: the tracker is the device itself.
+            self._attr_name = None
 
     @property
     def entity_registry_enabled_default(self) -> bool:
