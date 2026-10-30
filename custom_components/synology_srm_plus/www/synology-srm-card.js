@@ -170,7 +170,8 @@ function integrationDevices(hass, deviceId) {
   for (const entry of Object.values(hass.entities || {})) {
     if (entry.platform !== PLATFORM) continue;
     if (deviceId && entry.device_id !== deviceId) continue;
-    if (!entry.device_id) continue; // device trackers have no router device: not a router card
+    // client trackers (their own device since 0.5.24) are not routers: no router card for them
+    if (!entry.device_id || entry.entity_id.startsWith('device_tracker.')) continue;
     const state = hass.states[entry.entity_id];
     if (!state) continue;
     const found = byDevice.get(entry.device_id) || {};
