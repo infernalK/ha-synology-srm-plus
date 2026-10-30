@@ -893,12 +893,7 @@ def _security_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
                 translation_key="admin_sessions",
                 state_class=SensorStateClass.MEASUREMENT,
                 value_fn=lambda d: len(_sessions(d)),
-                attrs_fn=lambda d: {
-                    "sessions": [
-                        {k: s.get(k) for k in ("who", "from", "type", "time", "descr")}
-                        for s in _sessions(d)
-                    ]
-                },
+                attrs_fn=lambda d: {"sessions": [dict(s) for s in _sessions(d)]},
             )
         )
     if _num(_dig(data.get("autoblock"), "total")) is not None:

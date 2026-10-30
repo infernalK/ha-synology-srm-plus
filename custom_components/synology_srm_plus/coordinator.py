@@ -412,6 +412,27 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Return the API names offered by the router, if known."""
         return self._available_apis
 
+    def probe_syslog(self) -> list[str]:
+        """TEMPORARY, read-only: the router log lines about sign-ins and sessions."""
+        api = "SYNO.Core.SyslogClient.Log"
+        out: list[str] = []
+        for params in ({"limit": 1000, "offset": 0}, {}):
+            try:
+                result = self.client.http.call(
+                    endpoint=self._endpoint(api), api=api, method="list", version=1, params=params
+                )
+            except Exception as err:  # noqa: BLE001
+                out.append(f"{params}: {safe_error(err)}")
+                continue
+            items = result.get("items") if isinstance(result, dict) else None
+            out.append(f"{params}: {len(items or [])} lines, total={result.get('total') if isinstance(result, dict) else None}")
+            for i in items or []:
+                d = str(i.get("descr", ""))
+                if re.search(r"log|sess|sign|auth|connect|expire|kick|admin", d, re.I) and "email" not in d.lower():
+                    out.append(f"{i.get('time')} [{i.get('level')}] {redact(d)}")
+            break
+        return out
+
     def check_parallel(self, rounds: int = 10) -> list[str]:
         """Ask three different questions at the same time, with and without the per-call fix.
 

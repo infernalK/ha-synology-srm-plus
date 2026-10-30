@@ -157,6 +157,16 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.services.async_register(
         DOMAIN, SERVICE_CHECK_PARALLEL, _async_check_parallel, supports_response=SupportsResponse.ONLY
     )
+
+    async def _async_probe_syslog(call: ServiceCall) -> dict[str, str]:
+        lines: list[str] = []
+        for entry in hass.config_entries.async_loaded_entries(DOMAIN):
+            lines += await hass.async_add_executor_job(entry.runtime_data.probe_syslog)
+        return {"report": chr(10).join(lines)}
+
+    hass.services.async_register(
+        DOMAIN, "probe_syslog", _async_probe_syslog, supports_response=SupportsResponse.ONLY
+    )
     return True
 
 
