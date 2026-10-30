@@ -190,7 +190,7 @@
         "name": "New devices"
       },
       "admin_sessions": {
-        "name": "Admin sessions"
+        "name": "Admin sign-in history"
       },
       "blocked_ips": {
         "name": "Blocked IP addresses"

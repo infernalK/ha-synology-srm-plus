@@ -190,7 +190,7 @@
         "name": "Nouveaux appareils"
       },
       "admin_sessions": {
-        "name": "Sessions d'administration"
+        "name": "Historique des connexions d'administration"
       },
       "blocked_ips": {
         "name": "Adresses IP bloquées"

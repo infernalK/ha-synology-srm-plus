@@ -2,6 +2,10 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## 0.5.25
+
+- The admin sessions sensor is now called "Admin sign-in history": SRM only reports a history of sign-ins (no open/closed state), so it never showed the sessions really open. Records dated 1970 (unset) are ignored, which also stops the "admin session from the Internet" warning from firing on them. The entity ID is unchanged.
+
 ## 0.5.24
 
 - Home Assistant 2026.11 and later: each client tracker now has its own device (identified by the client's MAC address and named after the client), which removes the warning that device trackers without device info will stop working in 2028.11. Older Home Assistant versions are left as they were.

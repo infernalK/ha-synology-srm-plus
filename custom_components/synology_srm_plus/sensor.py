@@ -845,8 +845,14 @@ def _threat_levels(d: dict[str, Any]) -> dict[str, Any]:
 
 
 def _sessions(d: dict[str, Any]) -> list[dict[str, Any]]:
+    """Sign-in records of the admin interface (SRM keeps a history, not the open sessions).
+
+    Entries dated 1970 are unset records: they are dropped.
+    """
     items = _dig(d.get("admin_sessions"), "items")
-    return [i for i in items if isinstance(i, dict)] if isinstance(items, list) else []
+    if not isinstance(items, list):
+        return []
+    return [i for i in items if isinstance(i, dict) and not str(i.get("time", "")).startswith("1970")]
 
 
 def _blocked_clients(d: dict[str, Any]) -> list[dict[str, Any]]:
@@ -893,7 +899,12 @@ def _security_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
                 translation_key="admin_sessions",
                 state_class=SensorStateClass.MEASUREMENT,
                 value_fn=lambda d: len(_sessions(d)),
-                attrs_fn=lambda d: {"sessions": [dict(s) for s in _sessions(d)]},
+                attrs_fn=lambda d: {
+                    "sessions": [
+                        {k: s.get(k) for k in ("who", "from", "type", "time", "descr")}
+                        for s in _sessions(d)
+                    ]
+                },
             )
         )
     if _num(_dig(data.get("autoblock"), "total")) is not None:

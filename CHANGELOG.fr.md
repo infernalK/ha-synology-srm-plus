@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md) · **Français**
 
+## 0.5.25
+
+- Le capteur des sessions d'administration s'appelle maintenant « Historique des connexions d'administration » : SRM ne renvoie qu'un historique de connexions (sans état ouvert ou fermé), jamais les sessions réellement ouvertes. Les enregistrements datés de 1970 (non renseignés) sont ignorés, ce qui évite aussi l'alerte « session d'administration depuis Internet » à cause d'eux. L'identifiant de l'entité ne change pas.
+
 ## 0.5.24
 
 - Home Assistant 2026.11 et suivants : chaque suivi de client a maintenant son propre appareil (identifié par l'adresse MAC du client et nommé d'après lui), ce qui supprime l'avertissement indiquant que les suivis d'appareils sans informations d'appareil cesseront de fonctionner en 2028.11. Les versions plus anciennes de Home Assistant restent comme avant.
