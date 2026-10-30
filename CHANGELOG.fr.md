@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md) · **Français**
 
+## 0.5.26
+
+- Documentation : les captures d'écran du README utilisent des URL complètes, pour s'afficher dans la Marketplace de Home Assistant (elle ne résout pas les chemins d'images relatifs).
+
 ## 0.5.25
 
 - Le capteur des sessions d'administration s'appelle maintenant « Historique des connexions d'administration » : SRM ne renvoie qu'un historique de connexions (sans état ouvert ou fermé), jamais les sessions réellement ouvertes. Les enregistrements datés de 1970 (non renseignés) sont ignorés, ce qui évite aussi l'alerte « session d'administration depuis Internet » à cause d'eux. L'identifiant de l'entité ne change pas.

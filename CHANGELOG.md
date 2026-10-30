@@ -2,6 +2,10 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## 0.5.26
+
+- Documentation: the screenshots in the README now use full URLs, so they show in the Home Assistant marketplace (it does not resolve relative image paths).
+
 ## 0.5.25
 
 - The admin sessions sensor is now called "Admin sign-in history": SRM only reports a history of sign-ins (no open/closed state), so it never showed the sessions really open. Records dated 1970 (unset) are ignored, which also stops the "admin session from the Internet" warning from firing on them. The entity ID is unchanged.
