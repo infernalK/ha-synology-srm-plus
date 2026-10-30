@@ -364,8 +364,16 @@ class SynologySrmRouterCard extends SrmBaseCard {
     const networkTiles = (showNetworks ? [...new Set([...Object.keys(netRx), ...Object.keys(netTx)])] : [])
       .sort()
       .filter((n) => netCount[n] && Number(netCount[n].state) > 0)
-      .map((n) => {
+      .flatMap((n) => {
         const c = netCount[n];
+        const byBand = c.attributes.by_band || {};
+        if (this._config.networks_by_band && Object.keys(byBand).length) {
+          // one tile per Wi-Fi network and band ("IOT · 2.4G")
+          return Object.entries(byBand).map(([band, v]) => {
+            const label = `${t.wifi} ${n} · ${band} · ${v.clients} ${Number(v.clients) === 1 ? t.client : t.clients}`;
+            return `<div class="tile" data-entity="${esc(c.entity_id)}"><div class="k">${esc(label)}</div><div class="v"><span class="down">↓ ${fmtRate(v.download)}</span></div><div class="v"><span class="up">↑ ${fmtRate(v.upload)}</span></div></div>`;
+          });
+        }
         const bands = (c.attributes.bands || []).join(' · ');
         return `<div class="tile" data-entity="${esc((netRx[n] || netTx[n]).entity_id)}"><div class="k">${esc(t.wifi)} ${esc(n)} · ${esc(c.state)} ${Number(c.state) === 1 ? t.client : t.clients}</div><div class="v"><span class="down">↓ ${fmtRate(rateOf(netRx[n]))}</span></div><div class="v"><span class="up">↑ ${fmtRate(rateOf(netTx[n]))}</span></div>${bands ? `<div class="s">${esc(bands)}</div>` : ''}</div>`;
       })
@@ -908,13 +916,13 @@ const EDITOR_LABELS = {
     title: 'Title', device_id: 'Router (optional, if you have several)', traffic_by: 'Client traffic per',
     both: 'Wi-Fi band and Wi-Fi network', bands: 'Wi-Fi band', networks: 'Wi-Fi network',
     filter_by: 'Filters shown', f_both: 'Connection and Wi-Fi network', f_connection: 'Connection (band, wired)', f_network: 'Wi-Fi network', sort_by: 'Sort by', groups: 'Show only these connections', max_height: 'Maximum height (px)',
-    show_unlinked_ports: 'Show ports with no link', show_admin_sessions: 'Show the admin sign-in history', show_blocked_ips: 'Show the list of blocked IPs', download: 'Download', upload: 'Upload', signal: 'Signal', name: 'Name', last_seen: 'Last seen',
+    networks_by_band: 'Split each Wi-Fi network per band', show_unlinked_ports: 'Show ports with no link', show_admin_sessions: 'Show the admin sign-in history', show_blocked_ips: 'Show the list of blocked IPs', download: 'Download', upload: 'Upload', signal: 'Signal', name: 'Name', last_seen: 'Last seen',
   },
   fr: {
     title: 'Titre', device_id: 'Routeur (facultatif, si vous en avez plusieurs)', traffic_by: 'Trafic des clients par',
     both: 'Bande Wi-Fi et réseau Wi-Fi', bands: 'Bande Wi-Fi', networks: 'Réseau Wi-Fi',
     filter_by: 'Filtres affichés', f_both: 'Connexion et réseau Wi-Fi', f_connection: 'Connexion (bande, filaire)', f_network: 'Réseau Wi-Fi', sort_by: 'Trier par', groups: 'Afficher seulement ces connexions', max_height: 'Hauteur maximale (px)',
-    show_unlinked_ports: 'Afficher les ports sans lien', show_admin_sessions: "Afficher l'historique des connexions d'administration", show_blocked_ips: 'Afficher la liste des IP bloquées', download: 'Téléchargement', upload: 'Envoi', signal: 'Signal', name: 'Nom', last_seen: 'Dernière connexion',
+    networks_by_band: 'Séparer chaque réseau Wi-Fi par bande', show_unlinked_ports: 'Afficher les ports sans lien', show_admin_sessions: "Afficher l'historique des connexions d'administration", show_blocked_ips: 'Afficher la liste des IP bloquées', download: 'Téléchargement', upload: 'Envoi', signal: 'Signal', name: 'Nom', last_seen: 'Dernière connexion',
   },
 };
 
@@ -922,7 +930,7 @@ function editorSchema(kind, L) {
   const choice = (name, pairs) => ({ name, selector: { select: { mode: 'dropdown', options: pairs.map(([value, label]) => ({ value, label })) } } });
   const base = [{ name: 'title', selector: { text: {} } }, { name: 'device_id', selector: { device: { integration: PLATFORM } } }];
   if (kind === 'router') {
-    return [...base, choice('traffic_by', [['both', L.both], ['bands', L.bands], ['networks', L.networks]]), { name: 'show_unlinked_ports', selector: { boolean: {} } }];
+    return [...base, choice('traffic_by', [['both', L.both], ['bands', L.bands], ['networks', L.networks]]), { name: 'networks_by_band', selector: { boolean: {} } }, { name: 'show_unlinked_ports', selector: { boolean: {} } }];
   }
   if (kind === 'clients') {
     return [

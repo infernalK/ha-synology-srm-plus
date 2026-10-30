@@ -8,6 +8,7 @@
 - La carte Protection contre les menaces a une option `show_admin_sessions` (aussi dans l'éditeur visuel) pour masquer la liste des connexions d'administration ; la tuile du nombre reste.
 - L'utilisation du CPU et de la mémoire (%) est aussi affichée pour chaque satellite d'un mesh (« Utilisation CPU (nœud N) », « Utilisation mémoire (nœud N) ») ; le routeur principal garde ses capteurs. Le swap n'est fourni que pour le routeur principal.
 - La carte Routeur a une option `show_unlinked_ports` (aussi dans l'éditeur visuel) : `false` masque les ports Ethernet sans lien, pratique pour les satellites peu câblés.
+- Les capteurs des réseaux Wi-Fi ont un attribut `by_band` (clients et débits par bande), et la carte Routeur a une option `networks_by_band` (aussi dans l'éditeur visuel) pour afficher une tuile par réseau Wi-Fi et par bande, par exemple « IOT · 2.4G » et « IOT · 5G ».
 
 ## 0.5.24
 

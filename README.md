@@ -61,6 +61,7 @@ Five cards are included and loaded automatically (no resource to add):
 
 ```yaml
 type: custom:synology-srm-router-card     # gauges, traffic, bands, Wi-Fi access points (repeaters), ports per router, USB, storage
+networks_by_band: true                    # optional: one tile per Wi-Fi network and band ("IOT · 2.4G") instead of one per network (default: false)
 show_unlinked_ports: false                 # optional: hide the Ethernet ports that have no link (default: true)
 traffic_by: both         # optional: client traffic per Wi-Fi band (bands), per Wi-Fi network such as IOT (networks) or both (default); two separate sections
 ```

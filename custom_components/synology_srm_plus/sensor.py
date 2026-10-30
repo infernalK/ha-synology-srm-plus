@@ -407,7 +407,24 @@ def _network_attrs(d: dict[str, Any], network: str) -> dict[str, Any]:
         "ssids": sorted({c["ssid"] for c in clients if c.get("ssid")}),
         "download": _sum_network_rate(d, "download", network),
         "upload": _sum_network_rate(d, "upload", network),
+        "by_band": _network_by_band(clients),
     }
+
+
+def _network_by_band(clients: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Clients and rates of one Wi-Fi network, split per band (2.4G, 5G...)."""
+    out: dict[str, dict[str, Any]] = {}
+    for c in clients:
+        band = c.get("band")
+        if not band:
+            continue
+        item = out.setdefault(str(band), {"clients": 0, "download": 0, "upload": 0})
+        item["clients"] += 1
+        for field in ("download", "upload"):
+            value = c.get(field)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                item[field] += value
+    return dict(sorted(out.items()))
 
 
 def _sum_rate(d: dict[str, Any], field: str, group: str | None) -> float:
