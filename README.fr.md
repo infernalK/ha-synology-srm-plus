@@ -87,6 +87,7 @@ show_blocked_ips: false                   # facultatif : masque la liste des IP 
 
 ```yaml
 type: custom:synology-srm-safeaccess-card # Safe Access (contrôle parental) : temps sur internet, état, plages horaires par profil
+type: custom:synology-srm-trackers-card      # les clients suivis comme device trackers, en ligne d'abord (show_offline: false masque les hors ligne)
 ```
 
 Après la première installation, rechargez la page **sans cache** (Ctrl+Maj+R, ou Cmd+Maj+R sur Mac ; dans l'application mobile, *Paramètres → Application → Réinitialiser le cache du frontend*) pour que les cartes soient prises en compte. L'intégration affiche une notification pour vous le rappeler.

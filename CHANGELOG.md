@@ -10,6 +10,7 @@
 - The Router card has a `show_unlinked_ports` option (visual editor too): `false` hides the Ethernet ports with no link, handy for satellites with few cabled ports.
 - The Wi-Fi network sensors carry a `by_band` attribute (clients and rates per band), and the Router card has a `networks_by_band` option (visual editor too) to show one tile per Wi-Fi network and band, for example "IOT · 2.4G" and "IOT · 5G".
 - Fixed: the Router card no longer shows one empty card per client tracker since the trackers got their own device in 0.5.24.
+- New card `synology-srm-trackers-card`: lists the clients followed as device trackers (name, IP, MAC, online or not), online first. `show_offline: false` hides the offline ones.
 
 ## 0.5.24
 

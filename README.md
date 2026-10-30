@@ -87,6 +87,7 @@ show_blocked_ips: false                   # optional: hide the list of blocked I
 
 ```yaml
 type: custom:synology-srm-safeaccess-card # Safe Access (parental control): time online, status, schedules per profile
+type: custom:synology-srm-trackers-card      # the clients followed as device trackers, online first (show_offline: false hides the offline ones)
 ```
 
 After the first install, reload the page **without cache** (Ctrl+Shift+R, or Cmd+Shift+R on Mac; in the mobile app, *Settings → Companion app → Reset frontend cache*) so the cards are picked up. The integration shows a notification to remind you.
