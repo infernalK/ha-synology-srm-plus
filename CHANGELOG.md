@@ -6,6 +6,7 @@
 
 - The admin sessions sensor is now called "Admin sign-in history": SRM only reports a history of sign-ins (no open/closed state), so it never showed the sessions really open. Records dated 1970 (unset) are ignored, which also stops the "admin session from the Internet" warning from firing on them. The entity ID is unchanged.
 - The Threat prevention card has a `show_admin_sessions` option (visual editor too) to hide the list of admin sign-ins; the count tile stays.
+- CPU and memory usage (%) are now also shown for each satellite of a mesh ("CPU usage (node N)", "Memory usage (node N)"); the main router keeps its own sensors. Swap is only reported for the main router.
 
 ## 0.5.24
 

@@ -87,6 +87,12 @@
       "traffic_live": {
         "name": "Entrées de trafic en direct"
       },
+      "node_cpu_usage": {
+        "name": "Utilisation CPU (nœud {node})"
+      },
+      "node_memory_usage": {
+        "name": "Utilisation mémoire (nœud {node})"
+      },
       "uptime": {
         "name": "Durée de fonctionnement (nœud {node})"
       },

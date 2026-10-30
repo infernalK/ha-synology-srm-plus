@@ -161,6 +161,8 @@ ENDPOINTS: dict[str, tuple[str, Callable[[synology_srm.Client], Any], int]] = {
         1,
     ),
     "mesh_status": ("SYNO.Mesh.Status", _raw("SYNO.Mesh.Status"), 2),
+    # CPU and memory of every node (the satellites too).
+    "mesh_utilization": ("SYNO.Mesh.System.Utilization", _raw("SYNO.Mesh.System.Utilization"), 1),
     "eth_ports": (
         "SYNO.Mesh.Network.EthPortInfo",
         _raw("SYNO.Mesh.Network.EthPortInfo"),

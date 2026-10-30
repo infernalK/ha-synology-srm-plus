@@ -242,6 +242,35 @@ STATIC_REQUIRES = {
 }
 
 
+def _node_memory(d: dict[str, Any], node_id: Any) -> float | None:
+    node = _node(d, "mesh_utilization", node_id)
+    used, total = _num(node.get("mem_used")), _num(node.get("mem_total"))
+    return round(used / total * 100, 1) if used is not None and total else None
+
+
+def _node_utilization_descriptions(node_id: Any) -> list[SrmSensorDescription]:
+    """CPU and memory of a satellite (the main router has its own, fuller sensors)."""
+    ph = {"node": str(node_id)}
+    return [
+        SrmSensorDescription(
+            key=f"node_cpu_usage_{node_id}",
+            translation_key="node_cpu_usage",
+            placeholders=ph,
+            native_unit_of_measurement=PERCENTAGE,
+            state_class=SensorStateClass.MEASUREMENT,
+            value_fn=lambda d, n=node_id: _num(_node(d, "mesh_utilization", n).get("cpu_usage")),
+        ),
+        SrmSensorDescription(
+            key=f"node_memory_usage_{node_id}",
+            translation_key="node_memory_usage",
+            placeholders=ph,
+            native_unit_of_measurement=PERCENTAGE,
+            state_class=SensorStateClass.MEASUREMENT,
+            value_fn=lambda d, n=node_id: _node_memory(d, n),
+        ),
+    ]
+
+
 def _node_descriptions(node_id: Any) -> list[SrmSensorDescription]:
     """Sensors for one router node."""
     return [
@@ -1111,6 +1140,8 @@ def _dynamic_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
     for node in _dig(data.get("system_info"), "nodes") or []:
         if isinstance(node, dict) and "node_id" in node:
             out += _node_descriptions(node["node_id"])
+            if node["node_id"] != 0 and _find(_nodes(data, "mesh_utilization"), node_id=node["node_id"]):
+                out += _node_utilization_descriptions(node["node_id"])
 
     for iface in _dig(data.get("system_utilization"), "network") or []:
         if isinstance(iface, dict) and iface.get("device"):
