@@ -47,15 +47,15 @@ On the *Access control* card, `show_blocked_ips: false` hides the list of auto-b
 
 ## Dashboard cards
 
-Five cards are included and loaded automatically (no resource to add):
+Six cards are included and loaded automatically (no resource to add):
 
 | Router card | | Clients card |
 |---|---|---|
-| ![Router card](docs/images/router-card.png) | ![Router card, details](docs/images/router-card-details.png) | ![Clients card](docs/images/clients-card.png) |
+| ![Router card](https://raw.githubusercontent.com/infernalK/ha-synology-srm-plus/main/docs/images/router-card.png) | ![Router card, details](https://raw.githubusercontent.com/infernalK/ha-synology-srm-plus/main/docs/images/router-card-details.png) | ![Clients card](https://raw.githubusercontent.com/infernalK/ha-synology-srm-plus/main/docs/images/clients-card.png) |
 
 | Threat prevention card | Access control card | Safe Access card |
 |---|---|---|
-| ![Threat prevention card](docs/images/threat-card.png) | ![Access control card](docs/images/access-card.png) | ![Safe Access card](docs/images/safeaccess-card.png) |
+| ![Threat prevention card](https://raw.githubusercontent.com/infernalK/ha-synology-srm-plus/main/docs/images/threat-card.png) | ![Access control card](https://raw.githubusercontent.com/infernalK/ha-synology-srm-plus/main/docs/images/access-card.png) | ![Safe Access card](https://raw.githubusercontent.com/infernalK/ha-synology-srm-plus/main/docs/images/safeaccess-card.png) |
 
 *Rendered with neutral sample data. In Home Assistant the client icons are Material Design icons (the emoji here are stand-ins used by the preview harness) and the colors follow your theme.*
 
