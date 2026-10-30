@@ -771,7 +771,7 @@ class SynologySrmThreatCard extends SrmEntityCard {
       tile(t.forwards, first('port_forward_rules'));
 
     const sessionsSt = first('admin_sessions');
-    const sessions = sessionsSt ? (sessionsSt.attributes.sessions || []).slice(0, 8) : [];
+    const sessions = sessionsSt && this._config.show_admin_sessions !== false ? (sessionsSt.attributes.sessions || []).slice(0, 8) : [];
     const sessionRows = sessions
       .map((x) => {
         const bad = isPublicIp(x.from);
@@ -907,13 +907,13 @@ const EDITOR_LABELS = {
     title: 'Title', device_id: 'Router (optional, if you have several)', traffic_by: 'Client traffic per',
     both: 'Wi-Fi band and Wi-Fi network', bands: 'Wi-Fi band', networks: 'Wi-Fi network',
     filter_by: 'Filters shown', f_both: 'Connection and Wi-Fi network', f_connection: 'Connection (band, wired)', f_network: 'Wi-Fi network', sort_by: 'Sort by', groups: 'Show only these connections', max_height: 'Maximum height (px)',
-    show_blocked_ips: 'Show the list of blocked IPs', download: 'Download', upload: 'Upload', signal: 'Signal', name: 'Name', last_seen: 'Last seen',
+    show_admin_sessions: 'Show the admin sign-in history', show_blocked_ips: 'Show the list of blocked IPs', download: 'Download', upload: 'Upload', signal: 'Signal', name: 'Name', last_seen: 'Last seen',
   },
   fr: {
     title: 'Titre', device_id: 'Routeur (facultatif, si vous en avez plusieurs)', traffic_by: 'Trafic des clients par',
     both: 'Bande Wi-Fi et réseau Wi-Fi', bands: 'Bande Wi-Fi', networks: 'Réseau Wi-Fi',
     filter_by: 'Filtres affichés', f_both: 'Connexion et réseau Wi-Fi', f_connection: 'Connexion (bande, filaire)', f_network: 'Réseau Wi-Fi', sort_by: 'Trier par', groups: 'Afficher seulement ces connexions', max_height: 'Hauteur maximale (px)',
-    show_blocked_ips: 'Afficher la liste des IP bloquées', download: 'Téléchargement', upload: 'Envoi', signal: 'Signal', name: 'Nom', last_seen: 'Dernière connexion',
+    show_admin_sessions: "Afficher l'historique des connexions d'administration", show_blocked_ips: 'Afficher la liste des IP bloquées', download: 'Téléchargement', upload: 'Envoi', signal: 'Signal', name: 'Nom', last_seen: 'Dernière connexion',
   },
 };
 
@@ -931,6 +931,7 @@ function editorSchema(kind, L) {
     ];
   }
   if (kind === 'access') return [...base, { name: 'show_blocked_ips', selector: { boolean: {} } }];
+  if (kind === 'threat') return [...base, { name: 'show_admin_sessions', selector: { boolean: {} } }];
   return base;
 }
 

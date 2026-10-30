@@ -41,6 +41,8 @@ If you prefer one entity per device, use the **presence tracking option** (*Conf
 
 If you do not use Safe Access, untick **Use Safe Access** in the same *Configure* dialog: its calls are no longer made and its entities are deleted.
 
+On the *Threat prevention* card, `show_admin_sessions: false` hides the list of admin sign-ins under the tiles (the count stays); the list is shown by default.
+
 On the *Access control* card, `show_blocked_ips: false` hides the list of auto-blocked IP addresses and keeps only their number (handy when the router blocks tens of thousands); the list is shown by default.
 
 ## Dashboard cards
@@ -73,6 +75,7 @@ max_height: 500          # optional, px
 
 ```yaml
 type: custom:synology-srm-threat-card     # threat prevention: events, new devices, admin sessions, exposure
+show_admin_sessions: false                # optional: hide the admin sign-in list, keep the count (default: true)
 ```
 
 ```yaml

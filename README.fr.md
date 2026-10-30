@@ -41,6 +41,8 @@ Si vous préférez une entité par appareil, utilisez l'**option de suivi de pr�
 
 Si vous n'utilisez pas Safe Access, décochez **Utiliser Safe Access** dans la même fenêtre *Configurer* : ses appels ne sont plus faits et ses entités sont supprimées.
 
+Sur la carte *Protection contre les menaces*, `show_admin_sessions: false` masque la liste des connexions d'administration sous les tuiles (le nombre reste affiché) ; la liste est affichée par défaut.
+
 Sur la carte *Contrôle d'accès*, `show_blocked_ips: false` masque la liste des adresses IP bloquées automatiquement et ne garde que leur nombre (pratique quand le routeur en bloque des dizaines de milliers) ; la liste est affichée par défaut.
 
 ## Cartes de tableau de bord
@@ -73,6 +75,7 @@ max_height: 500          # facultatif, en px
 
 ```yaml
 type: custom:synology-srm-threat-card     # protection contre les menaces : événements, nouveaux appareils, sessions d'administration, exposition
+show_admin_sessions: false                # facultatif : masque la liste des connexions d'administration, garde le nombre (défaut : true)
 ```
 
 ```yaml

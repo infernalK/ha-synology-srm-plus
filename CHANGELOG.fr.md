@@ -5,6 +5,7 @@
 ## 0.5.25
 
 - Le capteur des sessions d'administration s'appelle maintenant « Historique des connexions d'administration » : SRM ne renvoie qu'un historique de connexions (sans état ouvert ou fermé), jamais les sessions réellement ouvertes. Les enregistrements datés de 1970 (non renseignés) sont ignorés, ce qui évite aussi l'alerte « session d'administration depuis Internet » à cause d'eux. L'identifiant de l'entité ne change pas.
+- La carte Protection contre les menaces a une option `show_admin_sessions` (aussi dans l'éditeur visuel) pour masquer la liste des connexions d'administration ; la tuile du nombre reste.
 
 ## 0.5.24
 
