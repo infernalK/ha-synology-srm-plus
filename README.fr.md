@@ -47,15 +47,15 @@ Sur la carte *Contrôle d'accès*, `show_blocked_ips: false` masque la liste des
 
 ## Cartes de tableau de bord
 
-Cinq cartes sont fournies et chargées automatiquement (aucune ressource à ajouter) :
+Six cartes sont fournies et chargées automatiquement (aucune ressource à ajouter) :
 
 | Carte routeur | | Carte clients |
 |---|---|---|
-| ![Carte routeur](docs/images/router-card.png) | ![Carte routeur, détails](docs/images/router-card-details.png) | ![Carte clients](docs/images/clients-card.png) |
+| ![Carte routeur](https://raw.githubusercontent.com/infernalK/ha-synology-srm-plus/main/docs/images/router-card.png) | ![Carte routeur, détails](https://raw.githubusercontent.com/infernalK/ha-synology-srm-plus/main/docs/images/router-card-details.png) | ![Carte clients](https://raw.githubusercontent.com/infernalK/ha-synology-srm-plus/main/docs/images/clients-card.png) |
 
 | Carte protection contre les menaces | Carte contrôle d'accès | Carte Safe Access |
 |---|---|---|
-| ![Carte protection contre les menaces](docs/images/threat-card.png) | ![Carte contrôle d'accès](docs/images/access-card.png) | ![Carte Safe Access](docs/images/safeaccess-card.png) |
+| ![Carte protection contre les menaces](https://raw.githubusercontent.com/infernalK/ha-synology-srm-plus/main/docs/images/threat-card.png) | ![Carte contrôle d'accès](https://raw.githubusercontent.com/infernalK/ha-synology-srm-plus/main/docs/images/access-card.png) | ![Carte Safe Access](https://raw.githubusercontent.com/infernalK/ha-synology-srm-plus/main/docs/images/safeaccess-card.png) |
 
 *Rendu avec des données d'exemple neutres, en anglais. Dans Home Assistant, les icônes des clients sont des icônes Material Design (les émojis ici sont des substituts du banc d'essai) et les couleurs suivent votre thème. Les cartes s'affichent en français si Home Assistant est en français.*
 
