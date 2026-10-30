@@ -41,6 +41,8 @@ Si vous préférez une entité par appareil, utilisez l'**option de suivi de pr�
 
 Si vous n'utilisez pas Safe Access, décochez **Utiliser Safe Access** dans la même fenêtre *Configurer* : ses appels ne sont plus faits et ses entités sont supprimées.
 
+Sur la carte *Protection contre les menaces*, `show_admin_sessions: false` masque la liste des connexions d'administration sous les tuiles (le nombre reste affiché) ; la liste est affichée par défaut.
+
 Sur la carte *Contrôle d'accès*, `show_blocked_ips: false` masque la liste des adresses IP bloquées automatiquement et ne garde que leur nombre (pratique quand le routeur en bloque des dizaines de milliers) ; la liste est affichée par défaut.
 
 ## Cartes de tableau de bord
@@ -59,6 +61,8 @@ Cinq cartes sont fournies et chargées automatiquement (aucune ressource à ajou
 
 ```yaml
 type: custom:synology-srm-router-card     # jauges, trafic, bandes, points d'accès Wi-Fi (répéteurs), ports par routeur, USB, stockage
+networks_by_band: true                    # facultatif : une tuile par réseau Wi-Fi et par bande (« IOT · 2.4G ») au lieu d'une par réseau (défaut : false)
+show_unlinked_ports: false                 # facultatif : masque les ports Ethernet sans lien (défaut : true)
 traffic_by: both         # facultatif : trafic des clients par bande Wi-Fi (bands), par réseau Wi-Fi comme IOT (networks) ou les deux (défaut) ; deux sections séparées
 ```
 
@@ -73,6 +77,7 @@ max_height: 500          # facultatif, en px
 
 ```yaml
 type: custom:synology-srm-threat-card     # protection contre les menaces : événements, nouveaux appareils, sessions d'administration, exposition
+show_admin_sessions: false                # facultatif : masque la liste des connexions d'administration, garde le nombre (défaut : true)
 ```
 
 ```yaml
@@ -82,6 +87,7 @@ show_blocked_ips: false                   # facultatif : masque la liste des IP 
 
 ```yaml
 type: custom:synology-srm-safeaccess-card # Safe Access (contrôle parental) : temps sur internet, état, plages horaires par profil
+type: custom:synology-srm-trackers-card      # les clients suivis comme device trackers, en ligne d'abord (show_offline: false masque les hors ligne)
 ```
 
 Après la première installation, rechargez la page **sans cache** (Ctrl+Maj+R, ou Cmd+Maj+R sur Mac ; dans l'application mobile, *Paramètres → Application → Réinitialiser le cache du frontend*) pour que les cartes soient prises en compte. L'intégration affiche une notification pour vous le rappeler.

@@ -41,6 +41,8 @@ If you prefer one entity per device, use the **presence tracking option** (*Conf
 
 If you do not use Safe Access, untick **Use Safe Access** in the same *Configure* dialog: its calls are no longer made and its entities are deleted.
 
+On the *Threat prevention* card, `show_admin_sessions: false` hides the list of admin sign-ins under the tiles (the count stays); the list is shown by default.
+
 On the *Access control* card, `show_blocked_ips: false` hides the list of auto-blocked IP addresses and keeps only their number (handy when the router blocks tens of thousands); the list is shown by default.
 
 ## Dashboard cards
@@ -59,6 +61,8 @@ Five cards are included and loaded automatically (no resource to add):
 
 ```yaml
 type: custom:synology-srm-router-card     # gauges, traffic, bands, Wi-Fi access points (repeaters), ports per router, USB, storage
+networks_by_band: true                    # optional: one tile per Wi-Fi network and band ("IOT · 2.4G") instead of one per network (default: false)
+show_unlinked_ports: false                 # optional: hide the Ethernet ports that have no link (default: true)
 traffic_by: both         # optional: client traffic per Wi-Fi band (bands), per Wi-Fi network such as IOT (networks) or both (default); two separate sections
 ```
 
@@ -73,6 +77,7 @@ max_height: 500          # optional, px
 
 ```yaml
 type: custom:synology-srm-threat-card     # threat prevention: events, new devices, admin sessions, exposure
+show_admin_sessions: false                # optional: hide the admin sign-in list, keep the count (default: true)
 ```
 
 ```yaml
@@ -82,6 +87,7 @@ show_blocked_ips: false                   # optional: hide the list of blocked I
 
 ```yaml
 type: custom:synology-srm-safeaccess-card # Safe Access (parental control): time online, status, schedules per profile
+type: custom:synology-srm-trackers-card      # the clients followed as device trackers, online first (show_offline: false hides the offline ones)
 ```
 
 After the first install, reload the page **without cache** (Ctrl+Shift+R, or Cmd+Shift+R on Mac; in the mobile app, *Settings → Companion app → Reset frontend cache*) so the cards are picked up. The integration shows a notification to remind you.

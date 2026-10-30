@@ -6,6 +6,7 @@
  *   type: custom:synology-srm-threat-card     (threat prevention: events, new devices, admin sessions, exposure)
  *   type: custom:synology-srm-access-card    (access control: blocked IPs, Wi-Fi block list, MAC filters, blocked devices)
  *   type: custom:synology-srm-safeaccess-card (Safe Access / parental control per profile)
+ *   type: custom:synology-srm-trackers-card   (the clients followed as device trackers)
  *
  * Both cards find the integration's entities by themselves. Optional `device_id`
  * restricts them to one router when several are configured.
@@ -17,13 +18,14 @@ const I18N = {
   en: {
     router: 'Router', uptime: 'Uptime', cpu: 'CPU', memory: 'Memory', swap: 'Swap', load: 'Load',
     connection: 'Connection', wifi_network: 'Wi-Fi network', traffic: 'Client traffic', traffic_networks: 'Traffic per Wi-Fi network', total: 'Total', wired: 'Wired', clients: 'clients', client: 'client',
+    trackers: 'Tracked clients', tracker_online: 'online', tracker_offline: 'offline', no_trackers: 'No client tracker is enabled.',
     wifi: 'Wi-Fi', channel: 'Channel', signal: 'Signal', network: 'Network', external: 'External IP',
     mode: 'Mode', links: 'Links', storage: 'Storage', connection: 'Connection', ok: 'OK',
     search: 'Search a client…', all: 'All', sort: 'Sort', name: 'Name', download: 'Download',
     upload: 'Upload', nothing: 'No client', no_data: 'No Synology SRM Plus data found.', offline: 'Offline', ip: 'IP address',
     offline_clients: 'Offline clients', last_seen: 'Last seen', ago: 'ago', router_throughput: 'Router throughput', nodes: 'Wi-Fi access points', node: 'Node',
     devices: 'devices', ports: 'Ports', usb: 'USB storage', no_link: 'no link', security: 'Security', threat_prevention: 'Threat prevention', profiles: 'profiles', online: 'online', mac_filter_list: 'Wi-Fi block list', mac_filter_profiles: 'Custom MAC filters', blocked_devices: 'Blocked devices', mac_filter_networks: 'Wi-Fi with MAC filter', access_control: 'Access control', auto_block: 'Auto-block', attempts: 'attempts', per: 'in', min: 'min', no_expiry: 'no expiry', storm: 'Broadcast-storm prevention', max_pps: 'packets/s max', on: 'on', off: 'off', ip_blocked: 'Blocked IP addresses', block_list_hint: 'applies to every SSID', threats: 'Threat events',
-    last24: '24 h', last7: '7 days', new_devices: 'New devices', admin_sessions: 'Admin sessions', blocked_ips: 'Blocked IPs',
+    last24: '24 h', last7: '7 days', new_devices: 'New devices', admin_sessions: 'Admin sign-in history', blocked_ips: 'Blocked IPs',
     forwards: 'Port forwards', protected: 'Protected', unprotected: 'Not protected', exposed: 'Admin reachable from the Internet',
     external_session: 'Admin session from the Internet', safe: 'Safe Access', internet_time: 'Internet time',
     blocked_now: 'Blocked now', concerned: 'Concerned', normal: 'Normal', filter: 'Filter', safe_search: 'Safe search',
@@ -41,13 +43,14 @@ const I18N = {
   fr: {
     router: 'Routeur', uptime: 'En ligne depuis', cpu: 'CPU', memory: 'Mémoire', swap: 'Swap', load: 'Charge',
     connection: 'Connexion', wifi_network: 'Réseau Wi-Fi', traffic: 'Trafic des clients', traffic_networks: 'Trafic par réseau Wi-Fi', total: 'Total', wired: 'Filaire', clients: 'clients', client: 'client',
+    trackers: 'Clients suivis', tracker_online: 'en ligne', tracker_offline: 'hors ligne', no_trackers: "Aucun suivi de client n'est activé.",
     wifi: 'Wi-Fi', channel: 'Canal', signal: 'Signal', network: 'Réseau', external: 'IP externe',
     mode: 'Mode', links: 'Liens', storage: 'Stockage', connection: 'Connexion', ok: 'OK',
     search: 'Rechercher un client…', all: 'Tous', sort: 'Tri', name: 'Nom', download: 'Téléchargement',
     upload: 'Envoi', nothing: 'Aucun client', no_data: 'Aucune donnée Synology SRM Plus trouvée.', offline: 'Hors ligne', ip: 'Adresse IP',
     offline_clients: 'Clients hors ligne', last_seen: 'Vu il y a', ago: '', router_throughput: 'Débit du routeur', nodes: "Points d'accès Wi-Fi", node: 'Nœud',
     devices: 'appareils', ports: 'Ports', usb: 'Stockage USB', no_link: 'pas de lien', security: 'Sécurité', threat_prevention: 'Protection contre les menaces', profiles: 'profils', online: 'en ligne', mac_filter_list: 'Liste de blocage Wi-Fi', mac_filter_profiles: 'Filtres MAC perso', blocked_devices: 'Appareils bloqués', mac_filter_networks: 'Wi-Fi avec filtrage MAC', access_control: "Contrôle d'accès", auto_block: 'Blocage auto', attempts: 'tentatives', per: 'en', min: 'min', no_expiry: 'sans expiration', storm: 'Prévention des tempêtes de diffusion', max_pps: 'paquets/s max', on: 'activée', off: 'désactivée', ip_blocked: 'Adresses IP bloquées', block_list_hint: 'valable pour tous les SSID', threats: 'Menaces détectées',
-    last24: '24 h', last7: '7 jours', new_devices: 'Nouveaux appareils', admin_sessions: "Sessions d'administration", blocked_ips: 'IP bloquées',
+    last24: '24 h', last7: '7 jours', new_devices: 'Nouveaux appareils', admin_sessions: "Historique des connexions admin", blocked_ips: 'IP bloquées',
     forwards: 'Redirections de ports', protected: 'Protégé', unprotected: 'Non protégé', exposed: "Administration joignable depuis Internet",
     external_session: "Session d'administration depuis Internet", safe: 'Safe Access', internet_time: 'Temps sur internet',
     blocked_now: 'Bloqué en ce moment', concerned: 'À surveiller', normal: 'Normal', filter: 'Filtre web', safe_search: 'Recherche sécurisée',
@@ -170,7 +173,8 @@ function integrationDevices(hass, deviceId) {
   for (const entry of Object.values(hass.entities || {})) {
     if (entry.platform !== PLATFORM) continue;
     if (deviceId && entry.device_id !== deviceId) continue;
-    if (!entry.device_id) continue; // device trackers have no router device: not a router card
+    // client trackers (their own device since 0.5.24) are not routers: no router card for them
+    if (!entry.device_id || entry.entity_id.startsWith('device_tracker.')) continue;
     const state = hass.states[entry.entity_id];
     if (!state) continue;
     const found = byDevice.get(entry.device_id) || {};
@@ -237,7 +241,7 @@ const STYLE = `
   .detail span { overflow-wrap: anywhere; }
 `;
 
-const CARDS_VERSION = '0.5.24'; // keep in sync with const.py VERSION (tests/smoke.py checks it)
+const CARDS_VERSION = '0.5.25'; // keep in sync with const.py VERSION (tests/smoke.py checks it)
 // eslint-disable-next-line no-console
 console.info(`Synology SRM Plus cards v${CARDS_VERSION}`);
 
@@ -364,8 +368,16 @@ class SynologySrmRouterCard extends SrmBaseCard {
     const networkTiles = (showNetworks ? [...new Set([...Object.keys(netRx), ...Object.keys(netTx)])] : [])
       .sort()
       .filter((n) => netCount[n] && Number(netCount[n].state) > 0)
-      .map((n) => {
+      .flatMap((n) => {
         const c = netCount[n];
+        const byBand = c.attributes.by_band || {};
+        if (this._config.networks_by_band && Object.keys(byBand).length) {
+          // one tile per Wi-Fi network and band ("IOT · 2.4G")
+          return Object.entries(byBand).map(([band, v]) => {
+            const label = `${t.wifi} ${n} · ${band} · ${v.clients} ${Number(v.clients) === 1 ? t.client : t.clients}`;
+            return `<div class="tile" data-entity="${esc(c.entity_id)}"><div class="k">${esc(label)}</div><div class="v"><span class="down">↓ ${fmtRate(v.download)}</span></div><div class="v"><span class="up">↑ ${fmtRate(v.upload)}</span></div></div>`;
+          });
+        }
         const bands = (c.attributes.bands || []).join(' · ');
         return `<div class="tile" data-entity="${esc((netRx[n] || netTx[n]).entity_id)}"><div class="k">${esc(t.wifi)} ${esc(n)} · ${esc(c.state)} ${Number(c.state) === 1 ? t.client : t.clients}</div><div class="v"><span class="down">↓ ${fmtRate(rateOf(netRx[n]))}</span></div><div class="v"><span class="up">↑ ${fmtRate(rateOf(netTx[n]))}</span></div>${bands ? `<div class="s">${esc(bands)}</div>` : ''}</div>`;
       })
@@ -437,6 +449,7 @@ class SynologySrmRouterCard extends SrmBaseCard {
         const tiles = nodePorts(n)
           .map((st) => {
             const linked = st.attributes.link !== false && Number(st.state) > 0;
+            if (!linked && this._config.show_unlinked_ports === false) return '';
             return `<div class="tile" data-entity="${esc(st.entity_id)}" style="${linked ? '' : 'opacity:.55'}"><div class="k">${esc(st.attributes.port)}</div><div class="v">${linked ? esc(fmtState(hass, st)) : esc(t.no_link)}</div></div>`;
           })
           .join('');
@@ -771,7 +784,7 @@ class SynologySrmThreatCard extends SrmEntityCard {
       tile(t.forwards, first('port_forward_rules'));
 
     const sessionsSt = first('admin_sessions');
-    const sessions = sessionsSt ? (sessionsSt.attributes.sessions || []).slice(0, 8) : [];
+    const sessions = sessionsSt && this._config.show_admin_sessions !== false ? (sessionsSt.attributes.sessions || []).slice(0, 8) : [];
     const sessionRows = sessions
       .map((x) => {
         const bad = isPublicIp(x.from);
@@ -900,6 +913,55 @@ class SynologySrmSafeAccessCard extends SrmEntityCard {
   }
 }
 
+/* ------------------------------------------------------------------ client trackers card */
+
+class SynologySrmTrackersCard extends SrmBaseCard {
+  static getStubConfig() {
+    return {};
+  }
+
+  getCardSize() {
+    return 6;
+  }
+
+  _update() {
+    const hass = this._hass;
+    if (!hass || !this._config) return;
+    const trackers = Object.values(hass.entities || {})
+      .filter((e) => e.platform === PLATFORM && e.entity_id.startsWith('device_tracker.'))
+      .map((e) => hass.states[e.entity_id])
+      .filter(Boolean);
+    const sig = trackers.map((s) => s.entity_id + s.state + s.last_updated).join('|') + (hass.language || '');
+    if (sig === this._sig) return;
+    this._sig = sig;
+    this._render(trackers);
+  }
+
+  _render(trackers) {
+    const hass = this._hass;
+    const t = strings(hass);
+    const name = (s) => s.attributes.friendly_name || s.entity_id;
+    const online = (s) => s.state === 'home';
+    const shown = this._config.show_offline === false ? trackers.filter(online) : trackers;
+    const rows = [...shown]
+      .sort((a, b) => Number(online(b)) - Number(online(a)) || name(a).localeCompare(name(b)))
+      .map((s) => {
+        const a = s.attributes;
+        const meta = [a.ip, a.mac].filter(Boolean).join(' · ');
+        return `<div class="row ${online(s) ? '' : 'off'}" style="grid-template-columns:1fr auto" data-entity="${esc(s.entity_id)}"><div style="min-width:0"><div class="nm">${esc(name(s))}</div><div class="meta">${esc(meta)}</div></div><div class="rt meta">${esc(online(s) ? t.tracker_online : t.tracker_offline)}</div></div>`;
+      })
+      .join('');
+    const count = `${trackers.filter(online).length} ${t.tracker_online} / ${trackers.length}`;
+    this.shadowRoot.innerHTML = `<style>${STYLE}</style>
+      <ha-card>
+        <div class="head"><ha-icon icon="mdi:devices"></ha-icon><div><div class="title">${esc(this._config.title || t.trackers)}</div><div class="sub">${esc(count)}</div></div></div>
+        ${rows || `<div class="empty">${esc(t.no_trackers)}</div>`}
+      </ha-card>`;
+    this.shadowRoot.querySelectorAll('[data-entity]').forEach((el) =>
+      el.addEventListener('click', () => this._moreInfo(el.dataset.entity)));
+  }
+}
+
 /* ------------------------------------------------------------------ visual editors */
 
 const EDITOR_LABELS = {
@@ -907,20 +969,22 @@ const EDITOR_LABELS = {
     title: 'Title', device_id: 'Router (optional, if you have several)', traffic_by: 'Client traffic per',
     both: 'Wi-Fi band and Wi-Fi network', bands: 'Wi-Fi band', networks: 'Wi-Fi network',
     filter_by: 'Filters shown', f_both: 'Connection and Wi-Fi network', f_connection: 'Connection (band, wired)', f_network: 'Wi-Fi network', sort_by: 'Sort by', groups: 'Show only these connections', max_height: 'Maximum height (px)',
-    show_blocked_ips: 'Show the list of blocked IPs', download: 'Download', upload: 'Upload', signal: 'Signal', name: 'Name', last_seen: 'Last seen',
+    networks_by_band: 'Split each Wi-Fi network per band', show_offline: 'Show the offline clients', show_unlinked_ports: 'Show ports with no link', show_admin_sessions: 'Show the admin sign-in history', show_blocked_ips: 'Show the list of blocked IPs', download: 'Download', upload: 'Upload', signal: 'Signal', name: 'Name', last_seen: 'Last seen',
   },
   fr: {
     title: 'Titre', device_id: 'Routeur (facultatif, si vous en avez plusieurs)', traffic_by: 'Trafic des clients par',
     both: 'Bande Wi-Fi et réseau Wi-Fi', bands: 'Bande Wi-Fi', networks: 'Réseau Wi-Fi',
     filter_by: 'Filtres affichés', f_both: 'Connexion et réseau Wi-Fi', f_connection: 'Connexion (bande, filaire)', f_network: 'Réseau Wi-Fi', sort_by: 'Trier par', groups: 'Afficher seulement ces connexions', max_height: 'Hauteur maximale (px)',
-    show_blocked_ips: 'Afficher la liste des IP bloquées', download: 'Téléchargement', upload: 'Envoi', signal: 'Signal', name: 'Nom', last_seen: 'Dernière connexion',
+    networks_by_band: 'Séparer chaque réseau Wi-Fi par bande', show_offline: 'Afficher les clients hors ligne', show_unlinked_ports: 'Afficher les ports sans lien', show_admin_sessions: "Afficher l'historique des connexions d'administration", show_blocked_ips: 'Afficher la liste des IP bloquées', download: 'Téléchargement', upload: 'Envoi', signal: 'Signal', name: 'Nom', last_seen: 'Dernière connexion',
   },
 };
 
 function editorSchema(kind, L) {
   const choice = (name, pairs) => ({ name, selector: { select: { mode: 'dropdown', options: pairs.map(([value, label]) => ({ value, label })) } } });
   const base = [{ name: 'title', selector: { text: {} } }, { name: 'device_id', selector: { device: { integration: PLATFORM } } }];
-  if (kind === 'router') return [...base, choice('traffic_by', [['both', L.both], ['bands', L.bands], ['networks', L.networks]])];
+  if (kind === 'router') {
+    return [...base, choice('traffic_by', [['both', L.both], ['bands', L.bands], ['networks', L.networks]]), { name: 'networks_by_band', selector: { boolean: {} } }, { name: 'show_unlinked_ports', selector: { boolean: {} } }];
+  }
   if (kind === 'clients') {
     return [
       ...base,
@@ -930,7 +994,9 @@ function editorSchema(kind, L) {
       { name: 'max_height', selector: { number: { min: 100, max: 2000, step: 50, mode: 'box' } } },
     ];
   }
+  if (kind === 'trackers') return [{ name: 'title', selector: { text: {} } }, { name: 'show_offline', selector: { boolean: {} } }];
   if (kind === 'access') return [...base, { name: 'show_blocked_ips', selector: { boolean: {} } }];
+  if (kind === 'threat') return [...base, { name: 'show_admin_sessions', selector: { boolean: {} } }];
   return base;
 }
 
@@ -969,12 +1035,12 @@ class SrmCardEditor extends HTMLElement {
   }
 }
 
-const EDITORS = { router: 'router', clients: 'clients', threat: 'threat', access: 'access', safeaccess: 'safeaccess' };
+const EDITORS = { router: 'router', clients: 'clients', threat: 'threat', access: 'access', safeaccess: 'safeaccess', trackers: 'trackers' };
 for (const [kind, name] of Object.entries(EDITORS)) {
   const tag = `synology-srm-${name}-card-editor`;
   if (!customElements.get(tag)) customElements.define(tag, class extends SrmCardEditor { static kind = kind; });
 }
-for (const [cls, name] of [[SynologySrmRouterCard, 'router'], [SynologySrmClientsCard, 'clients'], [SynologySrmThreatCard, 'threat'], [SynologySrmAccessCard, 'access'], [SynologySrmSafeAccessCard, 'safeaccess']]) {
+for (const [cls, name] of [[SynologySrmRouterCard, 'router'], [SynologySrmClientsCard, 'clients'], [SynologySrmThreatCard, 'threat'], [SynologySrmAccessCard, 'access'], [SynologySrmSafeAccessCard, 'safeaccess'], [SynologySrmTrackersCard, 'trackers']]) {
   cls.getConfigElement = () => document.createElement(`synology-srm-${name}-card-editor`);
 }
 
@@ -983,6 +1049,7 @@ if (!customElements.get('synology-srm-access-card')) customElements.define('syno
 if (!customElements.get('synology-srm-threat-card')) customElements.define('synology-srm-threat-card', SynologySrmThreatCard);
 if (!customElements.get('synology-srm-safeaccess-card')) customElements.define('synology-srm-safeaccess-card', SynologySrmSafeAccessCard);
 if (!customElements.get('synology-srm-router-card')) customElements.define('synology-srm-router-card', SynologySrmRouterCard);
+if (!customElements.get('synology-srm-trackers-card')) customElements.define('synology-srm-trackers-card', SynologySrmTrackersCard);
 if (!customElements.get('synology-srm-clients-card')) customElements.define('synology-srm-clients-card', SynologySrmClientsCard);
 
 window.customCards = window.customCards || [];
@@ -1011,5 +1078,10 @@ window.customCards.push(
     type: 'synology-srm-clients-card',
     name: 'Synology SRM – Clients',
     description: 'Every client with signal, link rate, traffic and details.',
+  },
+  {
+    type: 'synology-srm-trackers-card',
+    name: 'Synology SRM – Client trackers',
+    description: 'The clients followed as device trackers, online or not.',
   },
 );

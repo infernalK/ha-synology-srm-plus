@@ -2,6 +2,16 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## 0.5.25
+
+- The admin sessions sensor is now called "Admin sign-in history": SRM only reports a history of sign-ins (no open/closed state), so it never showed the sessions really open. Records dated 1970 (unset) are ignored, which also stops the "admin session from the Internet" warning from firing on them. The entity ID is unchanged.
+- The Threat prevention card has a `show_admin_sessions` option (visual editor too) to hide the list of admin sign-ins; the count tile stays.
+- CPU and memory usage (%) are now also shown for each satellite of a mesh ("CPU usage (node N)", "Memory usage (node N)"); the main router keeps its own sensors. Swap is only reported for the main router.
+- The Router card has a `show_unlinked_ports` option (visual editor too): `false` hides the Ethernet ports with no link, handy for satellites with few cabled ports.
+- The Wi-Fi network sensors carry a `by_band` attribute (clients and rates per band), and the Router card has a `networks_by_band` option (visual editor too) to show one tile per Wi-Fi network and band, for example "IOT · 2.4G" and "IOT · 5G".
+- Fixed: the Router card no longer shows one empty card per client tracker since the trackers got their own device in 0.5.24.
+- New card `synology-srm-trackers-card`: lists the clients followed as device trackers (name, IP, MAC, online or not), online first. `show_offline: false` hides the offline ones.
+
 ## 0.5.24
 
 - Home Assistant 2026.11 and later: each client tracker now has its own device (identified by the client's MAC address and named after the client), which removes the warning that device trackers without device info will stop working in 2028.11. Older Home Assistant versions are left as they were.

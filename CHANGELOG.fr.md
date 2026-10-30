@@ -2,6 +2,16 @@
 
 [English](CHANGELOG.md) · **Français**
 
+## 0.5.25
+
+- Le capteur des sessions d'administration s'appelle maintenant « Historique des connexions d'administration » : SRM ne renvoie qu'un historique de connexions (sans état ouvert ou fermé), jamais les sessions réellement ouvertes. Les enregistrements datés de 1970 (non renseignés) sont ignorés, ce qui évite aussi l'alerte « session d'administration depuis Internet » à cause d'eux. L'identifiant de l'entité ne change pas.
+- La carte Protection contre les menaces a une option `show_admin_sessions` (aussi dans l'éditeur visuel) pour masquer la liste des connexions d'administration ; la tuile du nombre reste.
+- L'utilisation du CPU et de la mémoire (%) est aussi affichée pour chaque satellite d'un mesh (« Utilisation CPU (nœud N) », « Utilisation mémoire (nœud N) ») ; le routeur principal garde ses capteurs. Le swap n'est fourni que pour le routeur principal.
+- La carte Routeur a une option `show_unlinked_ports` (aussi dans l'éditeur visuel) : `false` masque les ports Ethernet sans lien, pratique pour les satellites peu câblés.
+- Les capteurs des réseaux Wi-Fi ont un attribut `by_band` (clients et débits par bande), et la carte Routeur a une option `networks_by_band` (aussi dans l'éditeur visuel) pour afficher une tuile par réseau Wi-Fi et par bande, par exemple « IOT · 2.4G » et « IOT · 5G ».
+- Corrigé : la carte Routeur n'affiche plus une carte vide par suivi de client depuis que les suivis ont leur propre appareil en 0.5.24.
+- Nouvelle carte `synology-srm-trackers-card` : liste les clients suivis comme device trackers (nom, IP, MAC, en ligne ou non), en ligne d'abord. `show_offline: false` masque les clients hors ligne.
+
 ## 0.5.24
 
 - Home Assistant 2026.11 et suivants : chaque suivi de client a maintenant son propre appareil (identifié par l'adresse MAC du client et nommé d'après lui), ce qui supprime l'avertissement indiquant que les suivis d'appareils sans informations d'appareil cesseront de fonctionner en 2028.11. Les versions plus anciennes de Home Assistant restent comme avant.

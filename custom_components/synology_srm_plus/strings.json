@@ -87,6 +87,12 @@
       "traffic_live": {
         "name": "Live traffic entries"
       },
+      "node_cpu_usage": {
+        "name": "CPU usage (node {node})"
+      },
+      "node_memory_usage": {
+        "name": "Memory usage (node {node})"
+      },
       "uptime": {
         "name": "Uptime (node {node})"
       },
@@ -190,7 +196,7 @@
         "name": "New devices"
       },
       "admin_sessions": {
-        "name": "Admin sessions"
+        "name": "Admin sign-in history"
       },
       "blocked_ips": {
         "name": "Blocked IP addresses"
