@@ -481,9 +481,12 @@ class SynologySrmRouterCard extends SrmBaseCard {
         const ntx = nodeEntity('router_tx', n);
         const ncount = nodeEntity('connected_devices', n);
         const nup = nodeEntity('uptime', n);
+        const ncpu = nodeEntity('node_cpu_usage', n);
+        const nmem = nodeEntity('node_memory_usage', n);
         const lines = [
           [nodeEntity('model', n), nodeEntity('firmware', n)].filter(Boolean).map((x) => x.state).join(' · '),
           nup && `${t.uptime} ${fmtDuration(nup)}`,
+          (known(ncpu) || known(nmem)) && [known(ncpu) && `${t.cpu} ${Math.round(Number(ncpu.state))} %`, known(nmem) && `${t.memory} ${Math.round(Number(nmem.state))} %`].filter(Boolean).join(' · '),
           ncount && `${ncount.state} ${t.devices}`,
           nrx || ntx ? `↓ ${fmtRate(rateOf(nrx))} · ↑ ${fmtRate(rateOf(ntx))}` : '',
         ].filter(Boolean);

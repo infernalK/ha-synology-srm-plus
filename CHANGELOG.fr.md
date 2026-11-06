@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md) · **Français**
 
+## Non publié
+
+- La carte Routeur affiche maintenant le CPU et la mémoire de chaque satellite dans les tuiles des points d'accès Wi-Fi (les capteurs existaient depuis la 0.5.24 mais n'étaient pas sur la carte).
+
 ## 0.5.26
 
 - Documentation : les captures d'écran du README utilisent des URL complètes, pour s'afficher dans la Marketplace de Home Assistant (elle ne résout pas les chemins d'images relatifs).
