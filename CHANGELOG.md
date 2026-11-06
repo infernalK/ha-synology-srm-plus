@@ -2,7 +2,7 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
-## Unreleased
+## 0.5.27
 
 - The Router card now shows the CPU and memory usage of each satellite in its Wi-Fi access points tiles (the sensors existed since 0.5.24 but were not on the card).
 

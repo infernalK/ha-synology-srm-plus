@@ -2,7 +2,7 @@
 
 [English](CHANGELOG.md) · **Français**
 
-## Non publié
+## 0.5.27
 
 - La carte Routeur affiche maintenant le CPU et la mémoire de chaque satellite dans les tuiles des points d'accès Wi-Fi (les capteurs existaient depuis la 0.5.24 mais n'étaient pas sur la carte).
 
