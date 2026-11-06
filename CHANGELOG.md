@@ -2,6 +2,10 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## 0.5.27
+
+- The Router card now shows the CPU and memory usage of each satellite in its Wi-Fi access points tiles (the sensors existed since 0.5.24 but were not on the card).
+
 ## 0.5.26
 
 - Documentation: the screenshots in the README now use full URLs, so they show in the Home Assistant marketplace (it does not resolve relative image paths).
