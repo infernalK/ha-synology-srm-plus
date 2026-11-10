@@ -28,6 +28,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
+from .changes import detect
 from .clients import normalize_clients
 from .const import CONF_SAFE_ACCESS, DOMAIN, SCAN_INTERVAL
 
@@ -48,7 +49,7 @@ EXPECTED_KEYS = {"tps_trends": "trends"}
 
 
 def _raw(
-    api: str, method: str = "get", version: int = 1
+    api: str, method: str = "get", version: int = 1, params: dict[str, str] | None = None
 ) -> Callable[[synology_srm.Client], Any]:
     """Call an SRM API the library has no wrapper for.
 
@@ -57,7 +58,13 @@ def _raw(
     """
 
     def call(c: synology_srm.Client, endpoint: str = "entry.cgi") -> Any:
-        return c.http.call(endpoint=endpoint, api=api, method=method, version=version)
+        return c.http.call(
+            endpoint=endpoint,
+            api=api,
+            method=method,
+            version=version,
+            params=dict(params or {}),
+        )
 
     call.raw = True  # type: ignore[attr-defined]
     return call
@@ -219,6 +226,27 @@ ENDPOINTS: dict[str, tuple[str, Callable[[synology_srm.Client], Any], int]] = {
     "safe_stats": (
         "SYNO.SafeAccess.Overview.Statistics",
         _raw("SYNO.SafeAccess.Overview.Statistics"),
+        5,
+    ),
+    # Firewall rules (with the default policy) and DHCP, read every five minutes.
+    "firewall_rules": (
+        "SYNO.Core.Security.Firewall.Rules",
+        _raw("SYNO.Core.Security.Firewall.Rules", version=2),
+        5,
+    ),
+    "dhcp_servers": (
+        "SYNO.Core.Network.DHCPServer",
+        _raw("SYNO.Core.Network.DHCPServer"),
+        5,
+    ),
+    "dhcp_clients": (
+        "SYNO.Core.Network.DHCPServer.ClientList",
+        _raw("SYNO.Core.Network.DHCPServer.ClientList", "list", 2, {"ifname": "all"}),
+        5,
+    ),
+    "dhcp_reservations": (
+        "SYNO.Core.Network.DHCPServer.Reservation",
+        _raw("SYNO.Core.Network.DHCPServer.Reservation", version=2),
         5,
     ),
     "macfilter_devices": ("SYNO.Wifi.MACFilter.Global", _raw("SYNO.Wifi.MACFilter.Global"), 10),
@@ -428,6 +456,14 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._last_seen: dict[str, str] = {}
         self._seen_now: dict[str, str] = {}
         self._online_prev: set[str] = set()
+        # What changed on the router (new clients, firewall edits): the last state is
+        # stored so a change made while Home Assistant was off is reported once it is back.
+        self._changes_store: Store[dict[str, Any]] = Store(
+            hass, STORAGE_VERSION, f"{DOMAIN}_{entry.entry_id}_changes"
+        )
+        self._changes_state: dict[str, Any] | None = None
+        # The events found by the latest update; the event entities fire them.
+        self.events: list[dict[str, Any]] = []
 
     @property
     def available_apis(self) -> set[str] | None:
@@ -502,6 +538,7 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_setup(self) -> None:
         """Load the persisted last-seen times."""
         self._last_seen = await self._store.async_load() or {}
+        self._changes_state = await self._changes_store.async_load()
 
     def _endpoint(self, api: str) -> str:
         """Return the .cgi endpoint the router lists for an API."""
@@ -861,4 +898,12 @@ class SrmCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Update data."""
         data = await self.hass.async_add_executor_job(self._fetch)
         self._track_last_seen(data)
+        self._track_changes(data)
         return data
+
+    def _track_changes(self, data: dict[str, Any]) -> None:
+        """Find what changed since the last read and keep the new state."""
+        state, self.events = detect(self._changes_state, data)
+        if state != self._changes_state:
+            self._changes_state = state
+            self._changes_store.async_delay_save(lambda: state, 30)

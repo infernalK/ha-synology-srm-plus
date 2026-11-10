@@ -227,6 +227,18 @@
       },
       "network_tx": {
         "name": "Wi-Fi {network} envoi"
+      },
+      "firewall_rules": {
+        "name": "Règles du pare-feu"
+      },
+      "dhcp_leases": {
+        "name": "Baux DHCP"
+      },
+      "dhcp_reservations": {
+        "name": "Réservations DHCP"
+      },
+      "dhcp_pool": {
+        "name": "Utilisation du pool DHCP {network}"
       }
     },
     "binary_sensor": {
@@ -247,6 +259,29 @@
       },
       "wifi_mac_filter": {
         "name": "Filtrage MAC actif {network}"
+      }
+    },
+    "event": {
+      "new_client": {
+        "name": "Nouveau client",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "new_client": "Nouveau client"
+            }
+          }
+        }
+      },
+      "router_changes": {
+        "name": "Changements du routeur",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "firewall_rules_changed": "Règles du pare-feu modifiées",
+              "firewall_policy_changed": "Politique du pare-feu modifiée"
+            }
+          }
+        }
       }
     }
   },
@@ -285,6 +320,28 @@
     "check_parallel": {
       "name": "Tester les appels simultanés",
       "description": "Test en lecture seule : pose trois questions différentes au routeur en même temps, avec et sans le correctif, et compte les réponses qui appartiennent à une autre question. Dure une dizaine de secondes. À coller quand vous demandez de l'aide."
+    }
+  },
+  "issues": {
+    "certificate_changed": {
+      "title": "Le certificat du routeur a changé",
+      "description": "Le certificat présenté par {host} n'est plus celui vu à l'installation. C'est normal si SRM a renouvelé son certificat ou après une réinitialisation ; sinon, quelqu'un sur votre réseau répond peut-être à la place du routeur. Rien n'a cessé de fonctionner.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Faire confiance au nouveau certificat ?",
+            "description": "Validez seulement si vous savez pourquoi le certificat de {host} a changé. Home Assistant retiendra le nouveau."
+          }
+        }
+      }
+    },
+    "auto_block_off": {
+      "title": "Le blocage automatique est désactivé sur {router}",
+      "description": "Le blocage automatique de SRM, qui bloque une adresse après des connexions échouées répétées, est désactivé sur {router}. Activez-le dans les paramètres de sécurité de SRM (Panneau de configuration). Ce n'est qu'un avertissement : rien n'a été modifié pour vous. Vous pouvez l'ignorer si c'est voulu."
+    },
+    "firewall_open": {
+      "title": "Le pare-feu de {router} laisse Internet entrer dans votre réseau",
+      "description": "La politique par défaut du pare-feu de {router} autorise le trafic d'Internet vers votre réseau local. Sauf choix délibéré, réglez la politique par défaut du trafic venant d'Internet sur refuser dans les paramètres du pare-feu de SRM. Ce n'est qu'un avertissement : rien n'a été modifié pour vous."
     }
   }
 }

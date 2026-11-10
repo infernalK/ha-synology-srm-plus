@@ -23,6 +23,17 @@ jobs:
       - run: python tests/smoke.py
       - run: python tests/test_privacy.py
 
+  tests:
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: pip install pytest-homeassistant-custom-component home-assistant-frontend "synology-srm>=0.2.0"
+      - run: pytest
+
   hassfest:
     name: Hassfest
     runs-on: ubuntu-latest

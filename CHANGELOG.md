@@ -2,6 +2,15 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## 0.6.0
+
+- Firewall and DHCP: new sensors for the firewall rules (a count, with the rule table and the default policy as attributes), the DHCP leases and the DHCP reservations, and one pool-usage percentage per DHCP network that has its server on. The three lists name devices and addresses, so they are **disabled by default** and kept out of the history: enable them in the entity settings when you want them. They are read every five minutes, and only if the router offers the APIs.
+- Events: a *New client* entity fires when a device joins the network for the first time (name, address, connection, and whether its MAC address is a private one), and a *Router changes* entity fires when the firewall rules or the default policy change. The last state is stored, so a change made while Home Assistant was off is reported once it is back; what is already there at the first start is never reported.
+- Repairs (warnings, read only): auto block switched off, and a firewall whose default policy lets the Internet into your local network. Reaching the SRM interface itself from the Internet is not flagged here: the admin-interface warning already covers it and some people do it on purpose. A repair stays while its setting is unknown and goes once it is safe; you can ignore one.
+- Router certificate: SRM's own certificate cannot be verified, so connections stay unchecked as before, but the fingerprint seen when you add the router (or on first start for existing ones) is now remembered, and a repair warns you if it changes, with a button to trust the new one. Nothing ever stops working because of it.
+- New routers are named after their model (for example *RT2600ac*) instead of their IP address, so entities read "RT2600ac Port LAN 1". Routers already set up keep their name and entity IDs. Three more list sensors start disabled on new installs: the Wi-Fi block list, the custom MAC filters and the blocked devices (the Access card hides those tiles until you enable them); entities already created are not touched.
+- Maintenance: `sensor.py` is split into one module per topic (no change in behaviour: every entity has the same value, attributes and defaults as before), and a pytest suite now sets the integration up in a real Home Assistant, in CI.
+
 ## 0.5.30
 
 - Privacy: lists and personal attributes no longer go into the Home Assistant history database: the sites flagged by Safe Access, the MAC filter profiles, the BSSID and SSIDs, and the router's DDNS names (they stay readable as live state, the cards are unchanged). Device trackers now record only where the client was (connection, band, router node); the Wi-Fi name, signal, rates and parental-control flag are live only. Values recorded by earlier versions stay until Home Assistant purges its history.

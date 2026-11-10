@@ -21,15 +21,9 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from . import SrmConfigEntry
 from .const import DOMAIN
 from .coordinator import SrmCoordinator
-from .sensor import (
-    _dig,
-    _find,
-    _nodes,
-    _sessions,
-    port_label,
-    safe_profiles,
-    safe_schedule,
-)
+from .helpers import _dig, _find, _nodes, port_label
+from .sensors_safe import safe_profiles, safe_schedule
+from .sensors_security import _sessions
 
 
 @dataclass(frozen=True, kw_only=True)

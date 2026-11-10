@@ -30,7 +30,9 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 
+from .certificate import fetch_fingerprint, is_watched
 from .const import (
+    CONF_CERT_FINGERPRINT,
     CONF_SAFE_ACCESS,
     CONF_TRACK_ALL,
     CONF_TRACK_CLIENTS,
@@ -44,6 +46,19 @@ from .const import (
 from .coordinator import build_client, logout_client, safe_error
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _router_model(client: Any) -> str | None:
+    """Return the model of the main router node, or None when SRM does not say."""
+    try:
+        info = client.mesh.get_system_info()
+    except Exception:  # noqa: BLE001 - the name is a nicety, never a reason to fail
+        return None
+    nodes = info.get("nodes") if isinstance(info, dict) else None
+    for node in nodes if isinstance(nodes, list) else []:
+        if isinstance(node, dict) and node.get("node_id") == 0 and node.get("model"):
+            return str(node["model"])
+    return None
 
 
 class SrmOptionsFlow(OptionsFlowWithReload):
@@ -110,17 +125,32 @@ class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
         """Return the options flow."""
         return SrmOptionsFlow()
 
+    _model: str | None = None
+    _fingerprint: str | None = None
+
     async def _async_test(self, data: dict[str, Any]) -> str | None:
-        """Try to log in; return an error key, or None when it works."""
+        """Try to log in; return an error key, or None when it works.
+
+        On success the router's model is kept in ``self._model`` (None when unknown).
+        """
         try:
-            def _probe() -> None:
+
+            def _probe() -> tuple[str | None, str | None]:
                 client = build_client(data)
                 try:
                     client.core.get_system_utilization()
+                    model = _router_model(client)
                 finally:
                     logout_client(client)
+                # The certificate is only remembered (to warn if it changes), never enforced.
+                seen = (
+                    fetch_fingerprint(data[CONF_HOST], data[CONF_PORT])
+                    if is_watched(data)
+                    else None
+                )
+                return model, seen
 
-            await self.hass.async_add_executor_job(_probe)
+            self._model, self._fingerprint = await self.hass.async_add_executor_job(_probe)
         except SynologyException:
             return "invalid_auth"
         except Exception as err:  # noqa: BLE001
@@ -128,6 +158,21 @@ class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
             _LOGGER.warning("Unable to connect to SRM: %s", safe_error(err))
             return "cannot_connect"
         return None
+
+    def _with_fingerprint(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Return data with the certificate seen during the test (dropped when not watched)."""
+        data = {k: v for k, v in data.items() if k != CONF_CERT_FINGERPRINT}
+        if self._fingerprint:
+            data[CONF_CERT_FINGERPRINT] = self._fingerprint
+        return data
+
+    def _new_title(self, host: str) -> str:
+        """Name a new entry (and so its device) after the router's model, not its address."""
+        model = self._model
+        if not model:
+            return host
+        taken = {e.title for e in self._async_current_entries()}
+        return model if model not in taken else f"{model} ({host})"
 
     async def async_step_reconfigure(
         self, user_input: dict[str, Any] | None = None
@@ -142,8 +187,14 @@ class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
             if data[CONF_HOST] != entry.data[CONF_HOST]:
                 self._async_abort_entries_match({CONF_HOST: data[CONF_HOST]})
             if not (error := await self._async_test(data)):
+                # An entry still named after its address follows it; a model name stays.
+                title = (
+                    data[CONF_HOST]
+                    if entry.title == entry.data[CONF_HOST]
+                    else entry.title
+                )
                 return self.async_update_reload_and_abort(
-                    entry, title=data[CONF_HOST], data=data
+                    entry, title=title, data=self._with_fingerprint(data)
                 )
             errors["base"] = error
 
@@ -171,7 +222,8 @@ class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
             self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
             if not (error := await self._async_test(user_input)):
                 return self.async_create_entry(
-                    title=user_input[CONF_HOST], data=user_input
+                    title=self._new_title(user_input[CONF_HOST]),
+                    data=self._with_fingerprint(user_input),
                 )
             errors["base"] = error
 

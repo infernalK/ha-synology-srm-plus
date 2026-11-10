@@ -227,6 +227,18 @@
       },
       "network_tx": {
         "name": "Wi-Fi {network} upload"
+      },
+      "firewall_rules": {
+        "name": "Firewall rules"
+      },
+      "dhcp_leases": {
+        "name": "DHCP leases"
+      },
+      "dhcp_reservations": {
+        "name": "DHCP reservations"
+      },
+      "dhcp_pool": {
+        "name": "DHCP pool usage {network}"
       }
     },
     "binary_sensor": {
@@ -247,6 +259,29 @@
       },
       "wifi_mac_filter": {
         "name": "{network} MAC filter active"
+      }
+    },
+    "event": {
+      "new_client": {
+        "name": "New client",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "new_client": "New client"
+            }
+          }
+        }
+      },
+      "router_changes": {
+        "name": "Router changes",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "firewall_rules_changed": "Firewall rules changed",
+              "firewall_policy_changed": "Firewall policy changed"
+            }
+          }
+        }
       }
     }
   },
@@ -285,6 +320,28 @@
     "check_parallel": {
       "name": "Check parallel calls",
       "description": "Read-only test: asks the router three different questions at the same time, with and without the fix, and counts the answers that belong to another question. Takes about ten seconds. Paste the result when asking for help."
+    }
+  },
+  "issues": {
+    "certificate_changed": {
+      "title": "The router's certificate changed",
+      "description": "The certificate presented by {host} is not the one seen when it was set up. This is normal after SRM renewed its certificate or after a reset; if you did neither, someone on your network may be answering in place of the router. Nothing has stopped working.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Trust the new certificate?",
+            "description": "Choose Submit only if you know why the certificate of {host} changed. Home Assistant will remember the new one."
+          }
+        }
+      }
+    },
+    "auto_block_off": {
+      "title": "Auto block is off on {router}",
+      "description": "SRM's auto block, which blocks an address after repeated failed sign-ins, is switched off on {router}. Switch it on in SRM's security settings (Control Panel). This is only a warning: nothing was changed for you. You can ignore it if it is on purpose."
+    },
+    "firewall_open": {
+      "title": "The firewall of {router} lets the internet into your network",
+      "description": "The default firewall policy of {router} allows traffic from the internet to your local network. Unless you made this choice on purpose, set the default policy for traffic from the internet to deny in SRM's firewall settings. This is only a warning: nothing was changed for you."
     }
   }
 }

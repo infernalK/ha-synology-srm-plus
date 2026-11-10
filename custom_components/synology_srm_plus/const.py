@@ -3,12 +3,13 @@
 from datetime import timedelta
 
 DOMAIN = "synology_srm_plus"
-VERSION = "0.5.30"  # keep in sync with manifest.json (also busts the card cache)
+VERSION = "0.6.0"  # keep in sync with manifest.json (also busts the card cache)
 
 CONF_TRACK_CLIENTS = "track_clients"  # legacy option: track everyone
 CONF_TRACK_ALL = "track_all"
 CONF_TRACKED_CLIENTS = "tracked_clients"
 CONF_SAFE_ACCESS = "safe_access"
+CONF_CERT_FINGERPRINT = "cert_fingerprint"  # SHA-256 of the certificate seen at setup
 
 CARD_URL = f"/{DOMAIN}/synology-srm-card.js"
 # Small loader registered instead of the cards file itself (see its header).
