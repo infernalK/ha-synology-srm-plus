@@ -13,7 +13,16 @@ from homeassistant.helpers import entity_registry as er
 from . import SrmConfigEntry
 from .const import VERSION
 from .coordinator import redact
-from .sensor import _dig, _external, _find, _network_clients, _nodes, _volumes, _wifi_network_names, port_label
+from .helpers import (
+    _dig,
+    _external,
+    _find,
+    _network_clients,
+    _nodes,
+    _volumes,
+    _wifi_network_names,
+    port_label,
+)
 
 TO_REDACT = {
     CONF_HOST,
