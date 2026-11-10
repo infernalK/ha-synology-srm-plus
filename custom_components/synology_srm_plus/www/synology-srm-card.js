@@ -25,7 +25,7 @@ const I18N = {
     upload: 'Upload', nothing: 'No client', no_data: 'No Synology SRM Plus data found.', offline: 'Offline', ip: 'IP address',
     offline_clients: 'Offline clients', last_seen: 'Last seen', ago: 'ago', router_throughput: 'Router throughput', nodes: 'Wi-Fi access points', node: 'Node',
     devices: 'devices', ports: 'Ports', usb: 'USB storage', no_link: 'no link', security: 'Security', threat_prevention: 'Threat prevention', profiles: 'profiles', online: 'online', mac_filter_list: 'Wi-Fi block list', mac_filter_profiles: 'Custom MAC filters', blocked_devices: 'Blocked devices', mac_filter_networks: 'Wi-Fi with MAC filter', access_control: 'Access control', auto_block: 'Auto-block', attempts: 'attempts', per: 'in', min: 'min', no_expiry: 'no expiry', storm: 'Broadcast-storm prevention', max_pps: 'packets/s max', on: 'on', off: 'off', ip_blocked: 'Blocked IP addresses', block_list_hint: 'applies to every SSID', threats: 'Threat events',
-    last24: '24 h', last7: '7 days', new_devices: 'New devices', admin_sessions: 'Admin sign-in history', blocked_ips: 'Blocked IPs',
+    last24: '24 h', last7: '7 days', new_devices: 'New devices', admin_sessions: 'Admin sign-in history', expired: 'expired', blocked_ips: 'Blocked IPs',
     forwards: 'Port forwards', protected: 'Protected', unprotected: 'Not protected', exposed: 'Admin reachable from the Internet',
     external_session: 'Admin session from the Internet', safe: 'Safe Access', internet_time: 'Internet time',
     blocked_now: 'Blocked now', concerned: 'Concerned', normal: 'Normal', filter: 'Filter', safe_search: 'Safe search',
@@ -50,7 +50,7 @@ const I18N = {
     upload: 'Envoi', nothing: 'Aucun client', no_data: 'Aucune donnée Synology SRM Plus trouvée.', offline: 'Hors ligne', ip: 'Adresse IP',
     offline_clients: 'Clients hors ligne', last_seen: 'Vu il y a', ago: '', router_throughput: 'Débit du routeur', nodes: "Points d'accès Wi-Fi", node: 'Nœud',
     devices: 'appareils', ports: 'Ports', usb: 'Stockage USB', no_link: 'pas de lien', security: 'Sécurité', threat_prevention: 'Protection contre les menaces', profiles: 'profils', online: 'en ligne', mac_filter_list: 'Liste de blocage Wi-Fi', mac_filter_profiles: 'Filtres MAC perso', blocked_devices: 'Appareils bloqués', mac_filter_networks: 'Wi-Fi avec filtrage MAC', access_control: "Contrôle d'accès", auto_block: 'Blocage auto', attempts: 'tentatives', per: 'en', min: 'min', no_expiry: 'sans expiration', storm: 'Prévention des tempêtes de diffusion', max_pps: 'paquets/s max', on: 'activée', off: 'désactivée', ip_blocked: 'Adresses IP bloquées', block_list_hint: 'valable pour tous les SSID', threats: 'Menaces détectées',
-    last24: '24 h', last7: '7 jours', new_devices: 'Nouveaux appareils', admin_sessions: "Historique des connexions admin", blocked_ips: 'IP bloquées',
+    last24: '24 h', last7: '7 jours', new_devices: 'Nouveaux appareils', admin_sessions: "Historique des connexions admin", expired: 'expirée', blocked_ips: 'IP bloquées',
     forwards: 'Redirections de ports', protected: 'Protégé', unprotected: 'Non protégé', exposed: "Administration joignable depuis Internet",
     external_session: "Session d'administration depuis Internet", safe: 'Safe Access', internet_time: 'Temps sur internet',
     blocked_now: 'Bloqué en ce moment', concerned: 'À surveiller', normal: 'Normal', filter: 'Filtre web', safe_search: 'Recherche sécurisée',
@@ -787,11 +787,21 @@ class SynologySrmThreatCard extends SrmEntityCard {
       tile(t.forwards, first('port_forward_rules'));
 
     const sessionsSt = first('admin_sessions');
-    const sessions = sessionsSt && this._config.show_admin_sessions !== false ? (sessionsSt.attributes.sessions || []).slice(0, 8) : [];
+    // SRM keeps a history: a sign-in older than the session lifetime (12 h by default) is over.
+    const expired = (x) => {
+      const m = /^(\d{4})[/-](\d{2})[/-](\d{2})[ T](\d{2}):(\d{2}):(\d{2})/.exec(String(x.time || ''));
+      if (!m) return false;
+      const age = Date.now() - new Date(+m[1], m[2] - 1, +m[3], +m[4], +m[5], +m[6]).getTime();
+      return age > (Number(x.duration) || 43200) * 1000;
+    };
+    let sessions = sessionsSt && this._config.show_admin_sessions !== false ? (sessionsSt.attributes.sessions || []) : [];
+    if (this._config.hide_expired_sessions) sessions = sessions.filter((x) => !expired(x));
+    sessions = sessions.slice(0, 8);
     const sessionRows = sessions
       .map((x) => {
         const bad = isPublicIp(x.from);
-        return `<div class="row" style="grid-template-columns:1fr auto;cursor:default"><div style="min-width:0"><div class="nm" style="${bad ? 'color:var(--error-color,#db4437)' : ''}">${esc(x.who || '')} · ${esc(x.from || '')}</div><div class="meta">${esc(x.descr || x.type || '')}</div></div><div class="rt meta">${esc(x.time || '')}</div></div>`;
+        const old = expired(x);
+        return `<div class="row" style="grid-template-columns:1fr auto;cursor:default${old ? ';opacity:.5' : ''}"><div style="min-width:0"><div class="nm" style="${bad && !old ? 'color:var(--error-color,#db4437)' : ''}">${esc(x.who || '')} · ${esc(x.from || '')}</div><div class="meta">${esc(x.descr || x.type || '')}${old ? ' · ' + esc(t.expired) : ''}</div></div><div class="rt meta">${esc(x.time || '')}</div></div>`;
       })
       .join('');
 
@@ -972,13 +982,13 @@ const EDITOR_LABELS = {
     title: 'Title', device_id: 'Router (optional, if you have several)', traffic_by: 'Client traffic per',
     both: 'Wi-Fi band and Wi-Fi network', bands: 'Wi-Fi band', networks: 'Wi-Fi network',
     filter_by: 'Filters shown', f_both: 'Connection and Wi-Fi network', f_connection: 'Connection (band, wired)', f_network: 'Wi-Fi network', sort_by: 'Sort by', groups: 'Show only these connections', max_height: 'Maximum height (px)',
-    networks_by_band: 'Split each Wi-Fi network per band', show_offline: 'Show the offline clients', show_unlinked_ports: 'Show ports with no link', show_admin_sessions: 'Show the admin sign-in history', show_blocked_ips: 'Show the list of blocked IPs', download: 'Download', upload: 'Upload', signal: 'Signal', name: 'Name', last_seen: 'Last seen',
+    networks_by_band: 'Split each Wi-Fi network per band', show_offline: 'Show the offline clients', show_unlinked_ports: 'Show ports with no link', show_admin_sessions: 'Show the admin sign-in history', hide_expired_sessions: 'Hide expired admin sign-ins', show_blocked_ips: 'Show the list of blocked IPs', download: 'Download', upload: 'Upload', signal: 'Signal', name: 'Name', last_seen: 'Last seen',
   },
   fr: {
     title: 'Titre', device_id: 'Routeur (facultatif, si vous en avez plusieurs)', traffic_by: 'Trafic des clients par',
     both: 'Bande Wi-Fi et réseau Wi-Fi', bands: 'Bande Wi-Fi', networks: 'Réseau Wi-Fi',
     filter_by: 'Filtres affichés', f_both: 'Connexion et réseau Wi-Fi', f_connection: 'Connexion (bande, filaire)', f_network: 'Réseau Wi-Fi', sort_by: 'Trier par', groups: 'Afficher seulement ces connexions', max_height: 'Hauteur maximale (px)',
-    networks_by_band: 'Séparer chaque réseau Wi-Fi par bande', show_offline: 'Afficher les clients hors ligne', show_unlinked_ports: 'Afficher les ports sans lien', show_admin_sessions: "Afficher l'historique des connexions d'administration", show_blocked_ips: 'Afficher la liste des IP bloquées', download: 'Téléchargement', upload: 'Envoi', signal: 'Signal', name: 'Nom', last_seen: 'Dernière connexion',
+    networks_by_band: 'Séparer chaque réseau Wi-Fi par bande', show_offline: 'Afficher les clients hors ligne', show_unlinked_ports: 'Afficher les ports sans lien', show_admin_sessions: "Afficher l'historique des connexions d'administration", hide_expired_sessions: "Masquer les connexions admin expirées", show_blocked_ips: 'Afficher la liste des IP bloquées', download: 'Téléchargement', upload: 'Envoi', signal: 'Signal', name: 'Nom', last_seen: 'Dernière connexion',
   },
 };
 
@@ -999,7 +1009,7 @@ function editorSchema(kind, L) {
   }
   if (kind === 'trackers') return [{ name: 'title', selector: { text: {} } }, { name: 'show_offline', selector: { boolean: {} } }];
   if (kind === 'access') return [...base, { name: 'show_blocked_ips', selector: { boolean: {} } }];
-  if (kind === 'threat') return [...base, { name: 'show_admin_sessions', selector: { boolean: {} } }];
+  if (kind === 'threat') return [...base, { name: 'show_admin_sessions', selector: { boolean: {} } }, { name: 'hide_expired_sessions', selector: { boolean: {} } }];
   return base;
 }
 

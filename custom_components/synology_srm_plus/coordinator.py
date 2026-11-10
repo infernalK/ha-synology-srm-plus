@@ -358,6 +358,23 @@ def build_client(data: dict[str, Any]) -> synology_srm.Client:
     return client
 
 
+def logout_client(client: synology_srm.Client) -> None:
+    """Close the client's session on the router (blocking); never raises.
+
+    Each login opens a session that SRM keeps for hours, so one left open at every
+    reload or restart piles up.
+    """
+    http = client.http
+    if not getattr(http, "sid", None):
+        return
+    try:
+        http.call("auth.cgi", "SYNO.API.Auth", "Logout", 2, restricted=False)
+    except Exception as err:  # noqa: BLE001 - best effort
+        _LOGGER.debug("SRM logout failed: %s", safe_error(err))
+    finally:
+        http.sid = None
+
+
 def _isolate_call_params(http: Any) -> None:
     """Give every call its own parameters dict.
 
