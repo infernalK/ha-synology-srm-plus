@@ -2,6 +2,10 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## 0.6.1
+
+- Fixed the translation files of the certificate repair so that Home Assistant's validation (hassfest) passes; nothing else changes. This is the version to install: 0.6.0 was tagged but never offered.
+
 ## 0.6.0
 
 - Firewall and DHCP: new sensors for the firewall rules (a count, with the rule table and the default policy as attributes), the DHCP leases and the DHCP reservations, and one pool-usage percentage per DHCP network that has its server on. The three lists name devices and addresses, so they are **disabled by default** and kept out of the history: enable them in the entity settings when you want them. They are read every five minutes, and only if the router offers the APIs.
