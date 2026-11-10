@@ -158,6 +158,9 @@ def _security_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
             SrmSensorDescription(
                 key="mac_filter_profiles",
                 translation_key="mac_filter_profiles",
+                # Lists of names, MAC and IP addresses: off on new installs (enable them in the
+                # entity settings). Existing installs keep their entities as they are.
+                entity_registry_enabled_default=False,
                 state_class=SensorStateClass.MEASUREMENT,
                 entity_category=EntityCategory.DIAGNOSTIC,
                 value_fn=lambda d: len(
@@ -177,6 +180,9 @@ def _security_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
             SrmSensorDescription(
                 key="mac_filter_devices",
                 translation_key="mac_filter_devices",
+                # Lists of names, MAC and IP addresses: off on new installs (enable them in the
+                # entity settings). Existing installs keep their entities as they are.
+                entity_registry_enabled_default=False,
                 state_class=SensorStateClass.MEASUREMENT,
                 entity_category=EntityCategory.DIAGNOSTIC,
                 value_fn=lambda d: len(
@@ -205,6 +211,9 @@ def _security_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
             SrmSensorDescription(
                 key="blocked_devices",
                 translation_key="blocked_devices",
+                # Lists of names, MAC and IP addresses: off on new installs (enable them in the
+                # entity settings). Existing installs keep their entities as they are.
+                entity_registry_enabled_default=False,
                 state_class=SensorStateClass.MEASUREMENT,
                 value_fn=lambda d: len(_blocked_clients(d)),
                 attrs_fn=lambda d: {
