@@ -227,6 +227,18 @@
       },
       "network_tx": {
         "name": "Wi-Fi {network} upload"
+      },
+      "firewall_rules": {
+        "name": "Firewall rules"
+      },
+      "dhcp_leases": {
+        "name": "DHCP leases"
+      },
+      "dhcp_reservations": {
+        "name": "DHCP reservations"
+      },
+      "dhcp_pool": {
+        "name": "DHCP pool usage {network}"
       }
     },
     "binary_sensor": {
@@ -247,6 +259,29 @@
       },
       "wifi_mac_filter": {
         "name": "{network} MAC filter active"
+      }
+    },
+    "event": {
+      "new_client": {
+        "name": "New client",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "new_client": "New client"
+            }
+          }
+        }
+      },
+      "router_changes": {
+        "name": "Router changes",
+        "state_attributes": {
+          "event_type": {
+            "state": {
+              "firewall_rules_changed": "Firewall rules changed",
+              "firewall_policy_changed": "Firewall policy changed"
+            }
+          }
+        }
       }
     }
   },
@@ -299,6 +334,14 @@
           }
         }
       }
+    },
+    "auto_block_off": {
+      "title": "Auto block is off on {router}",
+      "description": "SRM's auto block, which blocks an address after repeated failed sign-ins, is switched off on {router}. Switch it on in SRM's security settings (Control Panel). This is only a warning: nothing was changed for you. You can ignore it if it is on purpose."
+    },
+    "firewall_open": {
+      "title": "The firewall of {router} lets the internet into your network",
+      "description": "The default firewall policy of {router} allows traffic from the internet to your local network. Unless you made this choice on purpose, set the default policy for traffic from the internet to deny in SRM's firewall settings. This is only a warning: nothing was changed for you."
     }
   }
 }

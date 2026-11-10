@@ -21,10 +21,16 @@ from homeassistant.helpers.typing import ConfigType
 from .certificate import async_watch_certificate
 from .const import CARD_URL, CONF_SAFE_ACCESS, LOADER_URL, DOMAIN, VERSION
 from .coordinator import SrmCoordinator, logout_client
+from .risk_repairs import async_watch_risks
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.SENSOR, Platform.BINARY_SENSOR, Platform.DEVICE_TRACKER]
+PLATFORMS = [
+    Platform.SENSOR,
+    Platform.BINARY_SENSOR,
+    Platform.DEVICE_TRACKER,
+    Platform.EVENT,
+]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -179,6 +185,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SrmConfigEntry) -> bool:
         _remove_safe_access_entities(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     async_watch_certificate(hass, entry)
+    async_watch_risks(hass, entry, coordinator)
 
     async def _async_logout(*_: object) -> None:
         await hass.async_add_executor_job(logout_client, coordinator.client)

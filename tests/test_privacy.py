@@ -22,9 +22,9 @@ from custom_components.synology_srm_plus import binary_sensor, coordinator, devi
 from custom_components.synology_srm_plus.clients import normalize_clients  # noqa: E402
 
 # Small, harmless attributes that may stay in the history even though they are lists or dicts.
-ALLOWED_RECORDED = {"bands", "by_band", "quota_minutes_by_weekday", "profile_ids"}
+ALLOWED_RECORDED = {"bands", "by_band", "quota_minutes_by_weekday", "profile_ids", "default_policy"}
 # Always personal or identifying: must never be recorded, whatever their type.
-ALWAYS_UNRECORDED = {"inappropriate_websites", "profiles", "bssid", "ssids", "clients", "devices", "sessions", "addresses", "ddns_hostnames"}
+ALWAYS_UNRECORDED = {"inappropriate_websites", "profiles", "bssid", "ssids", "clients", "devices", "sessions", "addresses", "ddns_hostnames", "leases", "reservations", "rules"}
 
 
 def _data() -> dict:

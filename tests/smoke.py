@@ -92,6 +92,33 @@ DATA = {
              "security": {"password": "hunter2", "psk": "secret"}},
             {"radio_type": "5G", "enable": True, "ssid": "MyHome-5G", "mac_filter": {"profile_id": 3}}]},
         {"id": 1, "name": "Guest Network", "radio_list": [{"radio_type": "5G", "enable": False, "mac_filter": {"profile_id": -1}}]}]}),
+    "firewall_rules": {
+        "default_policy": {"ipv4_wan_to_lan": "deny", "ipv4_wan_to_srm": "deny",
+                           "ipv6_wan_to_lan": "deny", "ipv6_wan_to_srm": "deny"},
+        "rules": [
+            {"name": "Allow NAS", "enabled": True, "action": "allow", "chain": "forward", "ip_version": "v4",
+             "protocol": "tcp", "in_interface_type": "specific", "in_interface_value": ["lan"],
+             "out_interface_type": "all", "out_interface_value": [], "src_ip_type": "all", "src_ip_value": "",
+             "src_port_type": "all", "src_port_value": "", "dst_ip_type": "single", "dst_ip_value": "192.0.2.11",
+             "dst_port_type": "single", "dst_port_value": "443"},
+            {"name": "Block camera", "enabled": False, "action": "deny", "chain": "forward", "ip_version": "v4",
+             "protocol": "all", "in_interface_type": "all", "in_interface_value": [], "out_interface_type": "all",
+             "out_interface_value": [], "src_ip_type": "single", "src_ip_value": "192.0.2.101", "src_port_type": "all",
+             "src_port_value": "", "dst_ip_type": "all", "dst_ip_value": "", "dst_port_type": "all", "dst_port_value": ""},
+        ],
+    },
+    "dhcp_servers": {"data": [
+        {"ifname": "lbr0", "ipv4": {"begin": "192.0.2.10", "end": "192.0.2.109", "enable": True}},
+        {"ifname": "gbr0", "ipv4": {"begin": "192.0.2.200", "end": "192.0.2.209", "enable": False}},
+    ]},
+    "dhcp_clients": {"clientList": {"ipv4": [
+        {"clid": "AA:BB:CC:00:00:01", "expire": "unlimited", "hostname": "Laptop", "ifname": "lbr0", "ip": "192.0.2.40"},
+        {"clid": "AA:BB:CC:00:00:04", "expire": "1792000000", "hostname": "Old phone", "ifname": "lbr0", "ip": "192.0.2.77"},
+    ]}},
+    "dhcp_reservations": {"reservationList": {"ipv4": [
+        {"clid": "AA:BB:CC:00:00:03", "hostname": "NAS", "ip": "192.0.2.11"},
+        {"clid": "AA:BB:CC:00:00:09", "hostname": "Printer", "ip": "192.0.2.250"},
+    ]}},
     "safe_devices": {"config_groups": [{"config_group_id": 2, "devices": ["AA:BB:CC:00:00:01", "aa:bb:cc:00:00:04", "aa:bb:cc:00:00:77"]}]},
     "safe_device_time": {"config_groups": [{"config_group_id": 2, "device_timespent": {
         "aa:bb:cc:00:00:01": {"total_spent": {"normal": 42, "reward": 0}}}}]},
@@ -146,6 +173,17 @@ def main() -> int:
             for field in re.findall(r"{(\w+)}", entry["name"]):
                 if field not in (desc.placeholders or {}):
                     errors.append(f"{label}: {lang} name needs placeholder {field}")
+
+    # firewall and DHCP
+    assert values_of(descriptions, "firewall_rules") == 2
+    assert values_of(descriptions, "dhcp_leases") == 2 and values_of(descriptions, "dhcp_reservations") == 2
+    # pool 192.0.2.10-109 (100 addresses): the lease .40, the lease .77 and the reservation .11 are in it
+    assert values_of(descriptions, "dhcp_pool_lbr0") == 3.0, values_of(descriptions, "dhcp_pool_lbr0")
+    assert not any(d.key == "dhcp_pool_gbr0" for _, d in descriptions), "a disabled DHCP server has no pool sensor"
+    leases = next(d for _, d in descriptions if d.key == "dhcp_leases").attrs_fn(DATA)["leases"]
+    assert leases[0]["name"] == "Laptop" and leases[0]["online"] and not leases[0]["reserved"], leases
+    resv = next(d for _, d in descriptions if d.key == "dhcp_reservations").attrs_fn(DATA)["reservations"]
+    assert [r["name"] for r in resv] == ["NAS", "Printer"] and resv[0]["in_pool"] and not resv[1]["in_pool"], resv
 
     kids = next(d for _, d in descriptions if d.key == "safe_time_2")
     devices = kids.attrs_fn(DATA)["devices"]

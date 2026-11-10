@@ -17,6 +17,7 @@ from .const import DOMAIN
 from .coordinator import SrmCoordinator
 from .helpers import SrmSensorDescription, _dig, _find, _nodes
 from .sensors_clients import _client_descriptions, _wifi_descriptions
+from .sensors_lan import _lan_descriptions
 from .sensors_safe import _safe_descriptions
 from .sensors_security import _security_descriptions
 from .sensors_system import (
@@ -40,6 +41,7 @@ def _dynamic_descriptions(data: dict[str, Any]) -> list[SrmSensorDescription]:
         *_usb_descriptions(data),
         *_security_descriptions(data),
         *_safe_descriptions(data),
+        *_lan_descriptions(data),
         *_wifi_descriptions(data),
         *_network_descriptions(data),
     ]
@@ -93,22 +95,9 @@ UNRECORDED_ATTRIBUTES = frozenset(
         "bssid",
         "ssids",
         "ddns_hostnames",  # the router's public DDNS names
-    }
-)
-
-
-UNRECORDED_ATTRIBUTES = frozenset(
-    {
-        "data",
-        "clients",
-        "sessions",
-        "devices",
-        "addresses",
-        "profiles",  # MAC filter profiles
-        "inappropriate_websites",  # sites flagged by Safe Access, per profile
-        "bssid",
-        "ssids",
-        "ddns_hostnames",  # the router's public DDNS names
+        "leases",  # DHCP leases: names, MAC and IP addresses
+        "reservations",
+        "rules",  # firewall rule table
     }
 )
 
