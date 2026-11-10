@@ -286,5 +286,19 @@
       "name": "Tester les appels simultanés",
       "description": "Test en lecture seule : pose trois questions différentes au routeur en même temps, avec et sans le correctif, et compte les réponses qui appartiennent à une autre question. Dure une dizaine de secondes. À coller quand vous demandez de l'aide."
     }
+  },
+  "issues": {
+    "certificate_changed": {
+      "title": "Le certificat du routeur a changé",
+      "description": "Le certificat présenté par {host} n'est plus celui vu à l'installation. C'est normal si SRM a renouvelé son certificat ou après une réinitialisation ; sinon, quelqu'un sur votre réseau répond peut-être à la place du routeur. Rien n'a cessé de fonctionner.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Faire confiance au nouveau certificat ?",
+            "description": "Validez seulement si vous savez pourquoi le certificat de {host} a changé. Home Assistant retiendra le nouveau."
+          }
+        }
+      }
+    }
   }
 }

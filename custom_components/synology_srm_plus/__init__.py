@@ -18,6 +18,7 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
+from .certificate import async_watch_certificate
 from .const import CARD_URL, CONF_SAFE_ACCESS, LOADER_URL, DOMAIN, VERSION
 from .coordinator import SrmCoordinator, logout_client
 
@@ -177,6 +178,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: SrmConfigEntry) -> bool:
     if not entry.options.get(CONF_SAFE_ACCESS, True):
         _remove_safe_access_entities(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    async_watch_certificate(hass, entry)
 
     async def _async_logout(*_: object) -> None:
         await hass.async_add_executor_job(logout_client, coordinator.client)

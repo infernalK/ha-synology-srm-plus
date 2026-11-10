@@ -30,7 +30,9 @@ from homeassistant.helpers.selector import (
     SelectSelectorMode,
 )
 
+from .certificate import fetch_fingerprint, is_watched
 from .const import (
+    CONF_CERT_FINGERPRINT,
     CONF_SAFE_ACCESS,
     CONF_TRACK_ALL,
     CONF_TRACK_CLIENTS,
@@ -124,6 +126,7 @@ class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
         return SrmOptionsFlow()
 
     _model: str | None = None
+    _fingerprint: str | None = None
 
     async def _async_test(self, data: dict[str, Any]) -> str | None:
         """Try to log in; return an error key, or None when it works.
@@ -132,15 +135,22 @@ class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
         """
         try:
 
-            def _probe() -> str | None:
+            def _probe() -> tuple[str | None, str | None]:
                 client = build_client(data)
                 try:
                     client.core.get_system_utilization()
-                    return _router_model(client)
+                    model = _router_model(client)
                 finally:
                     logout_client(client)
+                # The certificate is only remembered (to warn if it changes), never enforced.
+                seen = (
+                    fetch_fingerprint(data[CONF_HOST], data[CONF_PORT])
+                    if is_watched(data)
+                    else None
+                )
+                return model, seen
 
-            self._model = await self.hass.async_add_executor_job(_probe)
+            self._model, self._fingerprint = await self.hass.async_add_executor_job(_probe)
         except SynologyException:
             return "invalid_auth"
         except Exception as err:  # noqa: BLE001
@@ -148,6 +158,13 @@ class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
             _LOGGER.warning("Unable to connect to SRM: %s", safe_error(err))
             return "cannot_connect"
         return None
+
+    def _with_fingerprint(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Return data with the certificate seen during the test (dropped when not watched)."""
+        data = {k: v for k, v in data.items() if k != CONF_CERT_FINGERPRINT}
+        if self._fingerprint:
+            data[CONF_CERT_FINGERPRINT] = self._fingerprint
+        return data
 
     def _new_title(self, host: str) -> str:
         """Name a new entry (and so its device) after the router's model, not its address."""
@@ -177,7 +194,7 @@ class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
                     else entry.title
                 )
                 return self.async_update_reload_and_abort(
-                    entry, title=title, data=data
+                    entry, title=title, data=self._with_fingerprint(data)
                 )
             errors["base"] = error
 
@@ -205,7 +222,8 @@ class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
             self._async_abort_entries_match({CONF_HOST: user_input[CONF_HOST]})
             if not (error := await self._async_test(user_input)):
                 return self.async_create_entry(
-                    title=self._new_title(user_input[CONF_HOST]), data=user_input
+                    title=self._new_title(user_input[CONF_HOST]),
+                    data=self._with_fingerprint(user_input),
                 )
             errors["base"] = error
 
