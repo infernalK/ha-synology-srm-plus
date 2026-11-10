@@ -317,12 +317,11 @@
   "issues": {
     "certificate_changed": {
       "title": "The router's certificate changed",
-      "description": "The certificate presented by {host} is not the one seen when it was set up. This is normal after SRM renewed its certificate or after a reset; if you did neither, someone on your network may be answering in place of the router. Nothing has stopped working.",
       "fix_flow": {
         "step": {
           "confirm": {
             "title": "Trust the new certificate?",
-            "description": "Choose Submit only if you know why the certificate of {host} changed. Home Assistant will remember the new one."
+            "description": "The certificate presented by {host} is not the one seen when it was set up. This is normal after SRM renewed its certificate or after a reset; if you did neither, someone on your network may be answering in place of the router. Nothing has stopped working. Choose Submit only if you know why it changed: Home Assistant will then remember the new certificate."
           }
         }
       }

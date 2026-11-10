@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md) · **Français**
 
+## 0.6.1
+
+- Correction des fichiers de traduction de la réparation de certificat pour que la validation de Home Assistant (hassfest) passe ; rien d'autre ne change. C'est la version à installer : la 0.6.0 a été étiquetée mais jamais proposée.
+
 ## 0.6.0
 
 - Pare-feu et DHCP : nouveaux capteurs pour les règles du pare-feu (un compteur, avec la table des règles et la politique par défaut en attributs), les baux DHCP et les réservations DHCP, et un pourcentage d'utilisation du pool par réseau DHCP dont le serveur est actif. Les trois listes nomment des appareils et des adresses : elles sont **désactivées par défaut** et exclues de l'historique, activez-les dans les paramètres de l'entité quand vous en avez besoin. Elles sont lues toutes les cinq minutes, et seulement si le routeur propose les API.
