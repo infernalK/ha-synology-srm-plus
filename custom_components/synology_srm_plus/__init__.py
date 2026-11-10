@@ -11,7 +11,7 @@ from homeassistant.components import persistent_notification
 from homeassistant.components.frontend import add_extra_js_url
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import Platform
+from homeassistant.const import EVENT_HOMEASSISTANT_STOP, Platform
 from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import device_registry as dr
@@ -19,7 +19,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
 from .const import CARD_URL, CONF_SAFE_ACCESS, LOADER_URL, DOMAIN, VERSION
-from .coordinator import SrmCoordinator
+from .coordinator import SrmCoordinator, logout_client
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -177,6 +177,15 @@ async def async_setup_entry(hass: HomeAssistant, entry: SrmConfigEntry) -> bool:
     if not entry.options.get(CONF_SAFE_ACCESS, True):
         _remove_safe_access_entities(hass, entry)
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+
+    async def _async_logout(*_: object) -> None:
+        await hass.async_add_executor_job(logout_client, coordinator.client)
+
+    # Close the router session on reload, removal and Home Assistant shutdown.
+    entry.async_on_unload(_async_logout)
+    entry.async_on_unload(
+        hass.bus.async_listen_once(EVENT_HOMEASSISTANT_STOP, _async_logout)
+    )
     return True
 
 

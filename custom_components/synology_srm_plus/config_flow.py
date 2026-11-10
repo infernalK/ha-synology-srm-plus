@@ -41,7 +41,7 @@ from .const import (
     DEFAULT_VERIFY_SSL,
     DOMAIN,
 )
-from .coordinator import build_client, safe_error
+from .coordinator import build_client, logout_client, safe_error
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -113,9 +113,14 @@ class SrmConfigFlow(ConfigFlow, domain=DOMAIN):
     async def _async_test(self, data: dict[str, Any]) -> str | None:
         """Try to log in; return an error key, or None when it works."""
         try:
-            await self.hass.async_add_executor_job(
-                lambda: build_client(data).core.get_system_utilization()
-            )
+            def _probe() -> None:
+                client = build_client(data)
+                try:
+                    client.core.get_system_utilization()
+                finally:
+                    logout_client(client)
+
+            await self.hass.async_add_executor_job(_probe)
         except SynologyException:
             return "invalid_auth"
         except Exception as err:  # noqa: BLE001
