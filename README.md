@@ -24,6 +24,7 @@ Developed and tested on an **RT2600ac (SRM 1.3.2)**. The built-in `synology_srm`
 | Wi-Fi | per band: channel, throughput, average signal, client count; width / power / mode as attributes. **Per Wi-Fi network** (the SRM profile, for example *IOT*): client count (with the bands and SSIDs in use) and download / upload |
 | Network | IPv4 / IPv6 connection status, network mode (router / bridge), external IPv4 / IPv6 (+ DDNS names; only a valid address is shown, and the IPv4 of the WAN connection is used when the router's external-IP service gives none), Ethernet links (status, speed, IP) |
 | Ports | link speed and link state of the WAN port and each LAN port |
+| Firewall and DHCP | **pool usage** per network (share of the DHCP addresses leased or reserved); firewall rules, DHCP leases and reservations as counts with the full lists as attributes (**disabled by default**: they list names and addresses, enable them in the entity settings); an **event** when a client joins the network for the first time and when the firewall rules or default policy change (also if it happened while Home Assistant was off); **repairs** when auto block is off or the firewall lets the Internet into your network |
 | Storage | **USB disk usage** (%, used, total), disk and volume activity |
 | Security | threat events (24 h / 7 days), new devices, admin sessions, blocked IPs and **blocked devices**, **Wi-Fi block list** (the system list that applies to every SSID, with broadcast-storm prevention), **custom MAC filters** and the Wi-Fi networks that use one, port forwarding rules, threat protection on/off, **warnings** when the admin interface is reachable from the Internet or someone connected from outside |
 | Safe Access (parental control) | per profile: **its devices** (online or not, with their internet time), internet time, status, "blocked now" schedule, which filters are active, flagged websites; each client also shows its profile |
@@ -40,6 +41,10 @@ Each connection sensor (e.g. `sensor.<router>_clients_wi_fi_5g`) has a `clients`
 If you prefer one entity per device, use the **presence tracking option** (*Configure* on the integration): pick the clients that get a presence entity, or track every client. Unselected clients are removed again, no ghost entities. It is the same idea as the built-in integration, so keep only one of the two if you do not want duplicates.
 
 If you do not use Safe Access, untick **Use Safe Access** in the same *Configure* dialog: its calls are no longer made and its entities are deleted.
+
+The router's certificate cannot be verified (SRM uses its own), so the connection is not checked as before. Instead the fingerprint seen when you add the router is remembered, and a **repair** warns you if it changes later (a renewed certificate, or someone in between): you confirm the new one from the repair. Nothing ever stops working because of it.
+
+A new router is named after its model (for example *RT2600ac*) instead of its address; routers already set up keep their name.
 
 On the *Threat prevention* card, `show_admin_sessions: false` hides the list of admin sign-ins under the tiles (the count stays); the list is shown by default.
 

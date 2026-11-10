@@ -24,6 +24,7 @@ Développée et testée sur un **RT2600ac (SRM 1.3.2)**. L'intégration native `
 | Wi-Fi | par bande : canal, débit, signal moyen, nombre de clients ; largeur / puissance / mode en attributs. **Par réseau Wi-Fi** (le profil SRM, par exemple *IOT*) : nombre de clients (avec les bandes et SSID utilisés) et téléchargement / envoi |
 | Réseau | état de la connexion IPv4 / IPv6, mode réseau (routeur / bridge), IPv4 / IPv6 externes (+ noms DDNS ; seule une adresse valide est affichée, et l'IPv4 de la connexion WAN sert quand le service d'IP externe du routeur n'en donne pas), liens Ethernet (état, vitesse, IP) |
 | Ports | vitesse et état du lien du port WAN et de chaque port LAN |
+| Pare-feu et DHCP | **utilisation du pool** par réseau (part des adresses DHCP louées ou réservées) ; règles du pare-feu, baux et réservations DHCP en compteurs avec les listes complètes en attributs (**désactivés par défaut** : ils listent des noms et des adresses, activez-les dans les paramètres de l'entité) ; un **événement** quand un client rejoint le réseau pour la première fois et quand les règles ou la politique par défaut du pare-feu changent (même si c'était pendant que Home Assistant était éteint) ; des **réparations** si le blocage automatique est coupé ou si le pare-feu laisse Internet entrer dans votre réseau |
 | Stockage | **utilisation du disque USB** (%, utilisé, total), activité des disques et volumes |
 | Sécurité | menaces détectées (24 h / 7 jours), nouveaux appareils, sessions d'administration, IP bloquées et **appareils bloqués**, **liste de blocage Wi-Fi** (la liste système, valable pour tous les SSID, avec la prévention des tempêtes de diffusion), **filtres MAC personnalisés** et réseaux Wi-Fi qui en utilisent un, redirections de ports, protection contre les menaces activée ou non, **alertes** si l'interface d'administration est joignable depuis Internet ou si quelqu'un s'est connecté de l'extérieur |
 | Safe Access (contrôle parental) | par profil : **ses appareils** (en ligne ou non, avec leur temps sur internet), temps sur internet, état, plage « bloqué en ce moment », filtres actifs, sites signalés ; chaque client indique aussi son profil |
@@ -40,6 +41,10 @@ Chaque capteur de connexion (par exemple `sensor.<routeur>_clients_wi_fi_5g`) a 
 Si vous préférez une entité par appareil, utilisez l'**option de suivi de présence** (*Configurer* sur l'intégration) : choisissez les clients qui reçoivent une entité de présence, ou suivez-les tous. Les clients décochés sont supprimés, sans entités fantômes. C'est la même idée que l'intégration native : n'en gardez qu'une des deux pour éviter les doublons.
 
 Si vous n'utilisez pas Safe Access, décochez **Utiliser Safe Access** dans la même fenêtre *Configurer* : ses appels ne sont plus faits et ses entités sont supprimées.
+
+Le certificat du routeur ne peut pas être vérifié (SRM utilise le sien) : la connexion n'est donc pas contrôlée, comme avant. À la place, l'empreinte vue à l'ajout du routeur est mémorisée et une **réparation** vous prévient si elle change plus tard (certificat renouvelé, ou quelqu'un entre les deux) : vous confirmez le nouveau depuis la réparation. Rien ne cesse jamais de fonctionner pour cette raison.
+
+Un nouveau routeur est nommé d'après son modèle (par exemple *RT2600ac*) plutôt que son adresse ; les routeurs déjà installés gardent leur nom.
 
 Sur la carte *Protection contre les menaces*, `show_admin_sessions: false` masque la liste des connexions d'administration sous les tuiles (le nombre reste affiché) ; la liste est affichée par défaut.
 
