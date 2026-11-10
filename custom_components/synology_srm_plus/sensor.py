@@ -1189,6 +1189,22 @@ async def async_setup_entry(
     async_add_entities(SrmSensor(coordinator, desc) for desc in descriptions)
 
 
+UNRECORDED_ATTRIBUTES = frozenset(
+    {
+        "data",
+        "clients",
+        "sessions",
+        "devices",
+        "addresses",
+        "profiles",  # MAC filter profiles
+        "inappropriate_websites",  # sites flagged by Safe Access, per profile
+        "bssid",
+        "ssids",
+        "ddns_hostnames",  # the router's public DDNS names
+    }
+)
+
+
 class SrmSensor(CoordinatorEntity[SrmCoordinator], SensorEntity):
     """A sensor reading from the shared SRM coordinator."""
 
@@ -1228,5 +1244,7 @@ class SrmSensor(CoordinatorEntity[SrmCoordinator], SensorEntity):
             attrs.update(self.entity_description.attrs_fn(self.coordinator.data) or {})
         return attrs or None
 
-    # Large payloads: keep them out of the database.
-    _unrecorded_attributes = frozenset({"data", "clients", "sessions", "devices", "addresses"})
+    # Large or personal payloads (who is on the network, which sites a child hit, who is
+    # blocked, Wi-Fi identifiers): they stay readable as live state but never reach the
+    # history database. tests/test_privacy.py fails if a new list attribute is not listed.
+    _unrecorded_attributes = UNRECORDED_ATTRIBUTES

@@ -14,12 +14,21 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import SrmConfigEntry
+from .clients import _NSM_FIELDS
 from .const import CONF_TRACK_ALL, CONF_TRACK_CLIENTS, CONF_TRACKED_CLIENTS, DOMAIN
 from .coordinator import SrmCoordinator
 
 # From this Home Assistant version, a ScannerEntity without device info is reported
 # (to be refused in 2028.11). Older versions do not know about it: keep them as they were.
 _DEVICE_INFO_SINCE = AwesomeVersion("2026.11.0b0")
+
+
+# Attributes of a tracker kept in the history (where the client was). Every other field SRM
+# reports about a client stays live-only: Wi-Fi name, signal, rates, parental-control flag...
+RECORDED_TRACKER_ATTRIBUTES = frozenset({"connection", "band", "group", "mesh_node"})
+TRACKER_UNRECORDED_ATTRIBUTES = (
+    frozenset(_NSM_FIELDS) | {"interface", "wifi_bytes_rx", "wifi_bytes_tx", "extra"}
+) - RECORDED_TRACKER_ATTRIBUTES
 
 
 def needs_device_info(ha_version: str = HA_VERSION) -> bool:
@@ -150,4 +159,6 @@ class SrmClientTracker(CoordinatorEntity[SrmCoordinator], ScannerEntity):
         skip = {"mac", "ip", "name"}
         return {k: v for k, v in client.items() if k not in skip}
 
-    _unrecorded_attributes = frozenset({"wifi_bytes_rx", "wifi_bytes_tx"})
+    # A tracker is followed over time: keep only where the client was in the history, and
+    # leave everything else (Wi-Fi name, signal, rates, parental-control flag...) live-only.
+    _unrecorded_attributes = TRACKER_UNRECORDED_ATTRIBUTES
