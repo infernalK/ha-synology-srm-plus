@@ -2,7 +2,7 @@
 
 [English](CHANGELOG.md) · **Français**
 
-## Non publié
+## 0.5.28
 
 - L'intégration ferme maintenant sa session sur le routeur (`SYNO.API.Auth` Logout) au rechargement, à la suppression ou à l'arrêt de Home Assistant, ainsi qu'après le test de connexion du formulaire. Avant, chaque rechargement ou redémarrage laissait une session ouverte sur le routeur (35 relevées chez un testeur).
 - Carte Menaces : les connexions admin plus anciennes que la durée de session (12 h) sont grisées et marquées « expirée », et la nouvelle option `hide_expired_sessions` (éditeur visuel aussi) les masque.

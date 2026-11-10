@@ -2,7 +2,7 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
-## Unreleased
+## 0.5.28
 
 - The integration now signs out of the router (`SYNO.API.Auth` Logout) when it is reloaded, removed, or Home Assistant stops, and after the connection test in the setup form. Before, every reload or restart left a session open on the router (reported with 35 of them piling up).
 - Threat prevention card: admin sign-ins older than the session lifetime (12 h) are dimmed and tagged "expired", and the new `hide_expired_sessions` option (visual editor too) hides them.
