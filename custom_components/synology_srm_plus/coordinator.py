@@ -369,6 +369,9 @@ def logout_client(client: synology_srm.Client) -> None:
         return
     try:
         http.call("auth.cgi", "SYNO.API.Auth", "Logout", 2, restricted=False)
+    except KeyError:
+        # The router answers success without a "data" field and the library then trips on it.
+        pass
     except Exception as err:  # noqa: BLE001 - best effort
         _LOGGER.debug("SRM logout failed: %s", safe_error(err))
     finally:

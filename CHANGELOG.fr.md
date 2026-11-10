@@ -2,6 +2,10 @@
 
 [English](CHANGELOG.md) · **Français**
 
+## 0.5.29
+
+- Déconnexion : le routeur répond au logout sans champ « data », ce que la bibliothèque signalait comme une erreur ; c'est maintenant traité comme le succès qu'il est (rien ne change pour la session, le journal de debug est juste plus propre).
+
 ## 0.5.28
 
 - L'intégration ferme maintenant sa session sur le routeur (`SYNO.API.Auth` Logout) au rechargement, à la suppression ou à l'arrêt de Home Assistant, ainsi qu'après le test de connexion du formulaire. Avant, chaque rechargement ou redémarrage laissait une session ouverte sur le routeur (35 relevées chez un testeur).

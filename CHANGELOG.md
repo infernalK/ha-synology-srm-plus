@@ -2,6 +2,10 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## 0.5.29
+
+- Sign-out: the router answers the logout without a "data" field, which the library reported as an error; it is now treated as the success it is (nothing changes for the session, the debug log is just cleaner).
+
 ## 0.5.28
 
 - The integration now signs out of the router (`SYNO.API.Auth` Logout) when it is reloaded, removed, or Home Assistant stops, and after the connection test in the setup form. Before, every reload or restart left a session open on the router (reported with 35 of them piling up).
