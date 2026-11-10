@@ -2,6 +2,11 @@
 
 [English](CHANGELOG.md) · **Français**
 
+## 0.5.30
+
+- Confidentialité : les listes et attributs personnels ne vont plus dans la base d'historique de Home Assistant : sites signalés par Safe Access, profils de filtre MAC, BSSID et SSID, noms DDNS du routeur (ils restent lisibles en état live, les cartes ne changent pas). Les trackers n'enregistrent plus que l'endroit où était le client (connexion, bande, nœud du routeur) ; nom Wi-Fi, signal, débits et drapeau contrôle parental restent en live uniquement. Les valeurs déjà enregistrées par les versions précédentes restent jusqu'à la purge de l'historique par Home Assistant.
+- Un nouveau test (`tests/test_privacy.py`, lancé en CI) échoue si une liste ou un attribut personnel est ajouté sans être exclu de l'historique.
+
 ## 0.5.29
 
 - Déconnexion : le routeur répond au logout sans champ « data », ce que la bibliothèque signalait comme une erreur ; c'est maintenant traité comme le succès qu'il est (rien ne change pour la session, le journal de debug est juste plus propre).

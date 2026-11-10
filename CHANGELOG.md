@@ -2,6 +2,11 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## 0.5.30
+
+- Privacy: lists and personal attributes no longer go into the Home Assistant history database: the sites flagged by Safe Access, the MAC filter profiles, the BSSID and SSIDs, and the router's DDNS names (they stay readable as live state, the cards are unchanged). Device trackers now record only where the client was (connection, band, router node); the Wi-Fi name, signal, rates and parental-control flag are live only. Values recorded by earlier versions stay until Home Assistant purges its history.
+- A new test (`tests/test_privacy.py`, run in CI) fails when a list or personal attribute is added without being kept out of the history.
+
 ## 0.5.29
 
 - Sign-out: the router answers the logout without a "data" field, which the library reported as an error; it is now treated as the success it is (nothing changes for the session, the debug log is just cleaner).
