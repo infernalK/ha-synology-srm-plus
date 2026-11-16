@@ -241,7 +241,7 @@ const STYLE = `
   .detail span { overflow-wrap: anywhere; }
 `;
 
-const CARDS_VERSION = '0.6.1'; // keep in sync with const.py VERSION (tests/smoke.py checks it)
+const CARDS_VERSION = '0.6.2'; // keep in sync with const.py VERSION (tests/smoke.py checks it)
 // eslint-disable-next-line no-console
 console.info(`Synology SRM Plus cards v${CARDS_VERSION}`);
 
@@ -621,7 +621,11 @@ class SynologySrmClientsCard extends SrmBaseCard {
     const root = this.shadowRoot;
     const wanted = this._config.groups;
     let states = this._groupStates || [];
-    if (Array.isArray(wanted) && wanted.length) states = states.filter((s) => wanted.includes(s.attributes.group));
+    if (Array.isArray(wanted) && wanted.length) {
+      // '5G' also matches the radios of a tri-band model, which SRM names 5G-1 and 5G-2
+      const match = (g) => wanted.some((w) => g === w || g.startsWith(`${w}-`));
+      states = states.filter((s) => match(String(s.attributes.group)));
+    }
 
     const clients = [];
     const offlineClients = [];

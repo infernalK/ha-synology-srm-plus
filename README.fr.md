@@ -75,7 +75,7 @@ traffic_by: both         # facultatif : trafic des clients par bande Wi-Fi (band
 type: custom:synology-srm-clients-card    # chaque client, hors ligne compris
 title: Clients
 sort_by: download        # download | upload | signal | ip | name | last_seen
-groups: [5G, 2.4G]       # filtre facultatif (aussi : Wired, Offline)
+groups: [5G, 2.4G]       # filtre facultatif (aussi : Wired, Offline) ; 5G couvre aussi 5G-1 et 5G-2 sur les modèles tri-bande, ou nommez une radio précise
 filter_by: both          # facultatif : deux rangées de pastilles qui se combinent, par connexion (bande, filaire, hors ligne) et par réseau Wi-Fi comme IOT (connection | network | both, défaut both)
 max_height: 500          # facultatif, en px
 ```

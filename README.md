@@ -75,7 +75,7 @@ traffic_by: both         # optional: client traffic per Wi-Fi band (bands), per 
 type: custom:synology-srm-clients-card    # every client, offline ones included
 title: Clients
 sort_by: download        # download | upload | signal | ip | name | last_seen
-groups: [5G, 2.4G]       # optional filter (also: Wired, Offline)
+groups: [5G, 2.4G]       # optional filter (also: Wired, Offline); 5G also covers 5G-1 and 5G-2 on tri-band models, or name one radio exactly
 filter_by: both          # optional: two rows of filter chips that combine: per connection (band, wired, offline) and per Wi-Fi network such as IOT (connection | network | both, default both)
 max_height: 500          # optional, px
 ```

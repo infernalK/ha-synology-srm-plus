@@ -2,6 +2,10 @@
 
 **English** · [Français](CHANGELOG.fr.md)
 
+## 0.6.2
+
+- Clients card: `groups: [5G]` now also matches `5G-1` and `5G-2` on tri-band models (before, it showed no client). Exact names such as `5G-2` still select a single radio.
+
 ## 0.6.1
 
 - Fixed the translation files of the certificate repair so that Home Assistant's validation (hassfest) passes; nothing else changes. This is the version to install: 0.6.0 was tagged but never offered.
